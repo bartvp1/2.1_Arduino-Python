@@ -113,7 +113,17 @@ def apply_settings(obj):
     #todo: send data to UNO
     configuration[current_controller].update({'manual': obj[3], 'manual_extension': obj[4], 'min_extension': obj[0], 'max_extension': obj[1], 'threshold': obj[2]})
     pprint(configuration[current_controller])
+def draw_status():
+    status_bar.delete("all")
+    status1 = status_bar.create_oval(5, 5, 15, 15, fill='#26e300', outline="#ccc", width=0)
+    status2 = status_bar.create_oval(20, 5, 30, 15, fill='#26e300', outline="#ccc", width=0)
+    status3 = status_bar.create_oval(35, 5, 45, 15, fill='#26e300', outline="#ccc", width=0)
+    status4 = status_bar.create_oval(50, 5, 60, 15, fill='#26e300', outline="#ccc", width=0)
+    status5 = status_bar.create_oval(65, 5, 75, 15, fill='#26e300', outline="#ccc", width=0)
+    status6 = status_bar.create_text(90, 10, text='5/5 controllers connected', font='Courier 8', anchor=W)
+    #status1.coords(1, 10)
 
 draw_navigation()
 draw_graph()
+draw_status()
 root.mainloop()
