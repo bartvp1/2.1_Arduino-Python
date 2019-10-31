@@ -2,7 +2,7 @@ from tkinter import *
 import tkinter.ttk as ttk
 from random import randint
 from pprint import pprint
-import serial
+#import serial
 import serial.tools.list_ports
 import time
 
@@ -38,7 +38,7 @@ def settings_panel(index):
     current_controller = index
     title = Label(text="Controller "+str(current_controller+1)+" configuration", font='Courier 12 bold', bg=main_color, fg='#ffffff')
     min_slider = Scale(root, from_=0, to=100, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
-    max_slider = Scale(root, from_=0, to=100, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
+    max_slider = Scale(root, from_=min_slider.get(), to=100, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
     drempel_slider = Scale(root, from_=-30, to=50, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
     uitrol_slider = Scale(root, from_=0, to=100, orient=HORIZONTAL, fg='#ffffff', bg=main_color, borderwidth="0", highlightthickness=0)
 
@@ -54,8 +54,8 @@ def settings_panel(index):
     else:
         manual_button.deselect()
 
-    min_label = Label(text='Min. uitrolstand (%):', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
-    max_label = Label(text='Max. uitrolstand (%):', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
+    min_label = Label(text='Min. uitrolstand (cm):', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
+    max_label = Label(text='Max. uitrolstand (cm):', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
     drempel_label = Label(text='Drempelwaarde °C:', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
     manual_warning = Label(text="Manual control will override automatic behaviour", font='Courier 8', bg=main_color, fg='#ffffff')
     manual_label = Label(text='Manual control', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
@@ -123,7 +123,7 @@ def draw_navigation():
             main_canvas.delete("all")
             title = Label(text='Please select a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
             main_canvas.create_window(150, 50, window=title)
-    left_canvas.after(1000, draw_navigation)
+    #left_canvas.after(1000, draw_navigation)
 
 def apply_settings(obj):
     #todo: send data to UNO
@@ -132,12 +132,30 @@ def apply_settings(obj):
 
 def draw_status():
     status_bar.delete("all")
-    status1 = status_bar.create_oval(5, 5, 15, 15, fill='#26e300', outline="grey", width=1)
-    status2 = status_bar.create_oval(20, 5, 30, 15, fill='#26e300', outline="grey", width=1)
-    status3 = status_bar.create_oval(35, 5, 45, 15, fill='#26e300', outline="grey", width=1)
-    status4 = status_bar.create_oval(50, 5, 60, 15, fill='#26e300', outline="grey", width=1)
-    status5 = status_bar.create_oval(65, 5, 75, 15, fill='#26e300', outline="grey", width=1)
-    status6 = status_bar.create_text(90, 10, text='5/5 controllers connected', fill='white', font='Courier 8', anchor=W)
+    ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
+    #print(len(ports))
+    from_ = 5
+    for i in range(0, len(ports)):
+        status_bolletje = status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='#26e300', outline="grey", width=1)
+        from_ += 15
+    for i in range(len(ports), 6):
+        status_bolletje = status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='grey', outline="grey", width=1)
+        from_ += 15
+    status6 = status_bar.create_text(100, 10, text=str(len(ports))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
+    #status_bar.after(500, draw_status)
+    #left_canvas.after(1000, draw_navigation)
+
+number_of_devices = 0
+
+def draw_devices():
+    global number_of_devices
+    ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
+    if len(ports) != number_of_devices:
+        number_of_devices = len(ports)
+        print('x')
+        status_bar.after(0, draw_status)
+        left_canvas.after(0, draw_navigation)
+    root.after(500, draw_devices)
 
 #def read_serial():
 
@@ -158,8 +176,6 @@ def draw_status():
             continue
     '''''
 
-draw_navigation()
-#draw_graph()
+draw_devices()
 draw_status()
-
 root.mainloop()
