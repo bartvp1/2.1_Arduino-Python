@@ -2,6 +2,8 @@ from tkinter import *
 import tkinter.ttk as ttk
 from random import randint
 from pprint import pprint
+import serial
+import serial.tools.list_ports
 import time
 
 root = Tk()
@@ -10,6 +12,7 @@ root.resizable(False, False)
 root.geometry("800x450")
 
 main_color = '#3c3f41'
+settings_panel_open = False
 
 left_canvas = Canvas(root, width=200, height=430, bg='#313335', highlightthickness=0)
 main_canvas = Canvas(root, width=600, height=430, bg=main_color, highlightthickness=0)
@@ -27,12 +30,11 @@ configuration = [
     {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0}]  # controller 5
 
 current_controller = -1
-title = Label(text='Please a select controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
-main_canvas.create_window(150, 50, window=title)
 
 def settings_panel(index):
-    global current_controller  # , min_slider, max_slider, drempel_slider,uitrol_slider, manual_button, manual_var
+    global current_controller, settings_panel_open
     main_canvas.delete("all")
+    settings_panel_open = not settings_panel_open
     current_controller = index
     title = Label(text="Controller "+str(current_controller+1)+" configuration", font='Courier 12 bold', bg=main_color, fg='#ffffff')
     min_slider = Scale(root, from_=0, to=100, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
@@ -97,33 +99,67 @@ def draw_graph():
         main_canvas.create_text(395, y, text='%d' % (20 * i), font='Courier 6', anchor=E)
 
 def draw_navigation():
+    left_canvas.delete("all")
     controller_buttons = [
-        Button(text='Controller 1', height=2, width=30, command=lambda: settings_panel(0)),
-        Button(text='Controller 2', height=2, width=30, command=lambda: settings_panel(1)),
-        Button(text='Controller 3', height=2, width=30, command=lambda: settings_panel(2)),
-        Button(text='Controller 4', height=2, width=30, command=lambda: settings_panel(3)),
-        Button(text='Controller 5', height=2, width=30, command=lambda: settings_panel(4))]
+        Button(text='Controller 1', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(0)),
+        Button(text='Controller 2', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(1)),
+        Button(text='Controller 3', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(2)),
+        Button(text='Controller 4', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(3)),
+        Button(text='Controller 5', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(4))]
 
+    ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
     offset = 60
-    for button in controller_buttons:
-        left_canvas.create_window(90, offset, window=button)
-        offset += 45
+
+    if len(ports) == 0:
+        main_canvas.delete("all")
+        title = Label(text='Please connect a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
+        main_canvas.create_window(150, 50, window=title)
+    else:
+        for i in range(len(ports)):
+            button = controller_buttons[i]
+            left_canvas.create_window(90, offset, window=button)
+            offset += 45
+        if not settings_panel_open:
+            main_canvas.delete("all")
+            title = Label(text='Please select a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
+            main_canvas.create_window(150, 50, window=title)
+    left_canvas.after(1000, draw_navigation)
 
 def apply_settings(obj):
     #todo: send data to UNO
     configuration[current_controller].update({'manual': obj[3], 'manual_extension': obj[4], 'min_extension': obj[0], 'max_extension': obj[1], 'threshold': obj[2]})
     pprint(configuration[current_controller])
+
 def draw_status():
     status_bar.delete("all")
-    status1 = status_bar.create_oval(5, 5, 15, 15, fill='#26e300', outline="#ccc", width=0)
-    status2 = status_bar.create_oval(20, 5, 30, 15, fill='#26e300', outline="#ccc", width=0)
-    status3 = status_bar.create_oval(35, 5, 45, 15, fill='#26e300', outline="#ccc", width=0)
-    status4 = status_bar.create_oval(50, 5, 60, 15, fill='#26e300', outline="#ccc", width=0)
-    status5 = status_bar.create_oval(65, 5, 75, 15, fill='#26e300', outline="#ccc", width=0)
-    status6 = status_bar.create_text(90, 10, text='5/5 controllers connected', font='Courier 8', anchor=W)
-    #status1.coords(1, 10)
+    status1 = status_bar.create_oval(5, 5, 15, 15, fill='#26e300', outline="grey", width=1)
+    status2 = status_bar.create_oval(20, 5, 30, 15, fill='#26e300', outline="grey", width=1)
+    status3 = status_bar.create_oval(35, 5, 45, 15, fill='#26e300', outline="grey", width=1)
+    status4 = status_bar.create_oval(50, 5, 60, 15, fill='#26e300', outline="grey", width=1)
+    status5 = status_bar.create_oval(65, 5, 75, 15, fill='#26e300', outline="grey", width=1)
+    status6 = status_bar.create_text(90, 10, text='5/5 controllers connected', fill='white', font='Courier 8', anchor=W)
+
+#def read_serial():
+
+    ''''for i in range(10):
+        try:
+            ser = serial.Serial("COM" + str(i), 9600, timeout=3)
+            if ser.read():
+                print('COM' + str(i) + ' open')
+            try:
+                while ser.read():
+                    print('d'+str(ser.readline()[0:-2]))
+                ser.close()
+
+            except serial.serialutil.SerialException:
+                ser.close()
+                continue
+        except serial.serialutil.SerialException:
+            continue
+    '''''
 
 draw_navigation()
-draw_graph()
+#draw_graph()
 draw_status()
+
 root.mainloop()
