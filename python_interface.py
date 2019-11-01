@@ -32,15 +32,20 @@ configuration = [
 current_controller = -1
 
 def settings_panel(index):
-    global current_controller, settings_panel_open
+    global current_controller, settings_panel_open, drempel_slider, drempel_label
     main_canvas.delete("all")
     settings_panel_open = not settings_panel_open
     current_controller = index
-    title = Label(text="Controller "+str(current_controller+1)+" configuration", font='Courier 12 bold', bg=main_color, fg='#ffffff')
-    min_slider = Scale(root, from_=0, to=100, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
-    max_slider = Scale(root, from_=min_slider.get(), to=100, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
-    drempel_slider = Scale(root, from_=-30, to=50, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
-    uitrol_slider = Scale(root, from_=0, to=100, orient=HORIZONTAL, fg='#ffffff', bg=main_color, borderwidth="0", highlightthickness=0)
+    sensor = arduinos.get(list(arduinos.keys())[current_controller])
+    title = Label(text=sensor+" configuration", font='Courier 12 bold', bg=main_color, fg='#ffffff')
+    min_slider = Scale(root, from_=0, to=100, resolution=5, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
+    max_slider = Scale(root, from_=min_slider.get(), to=100, resolution=5, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
+    if sensor == 'Lichtsensor':
+        drempel_label = Label(text='Drempelwaarde (lux)):', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
+        drempel_slider = Scale(root, from_=10000, to=100000, resolution=10000, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
+    if sensor == 'Temperatuursensor':
+        drempel_label = Label(text='Drempelwaarde (°C):', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
+    uitrol_slider = Scale(root, from_=-30, to=50, resolution=5, orient=HORIZONTAL, fg='#ffffff', bg=main_color, borderwidth="0", highlightthickness=0)
 
     drempel_slider.set(configuration[current_controller]['threshold'])
     max_slider.set(configuration[current_controller]['max_extension'])
@@ -56,10 +61,9 @@ def settings_panel(index):
 
     min_label = Label(text='Min. uitrolstand (cm):', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
     max_label = Label(text='Max. uitrolstand (cm):', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
-    drempel_label = Label(text='Drempelwaarde °C:', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
     manual_warning = Label(text="Manual control will override automatic behaviour", font='Courier 8', bg=main_color, fg='#ffffff')
     manual_label = Label(text='Manual control', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
-    uitrol_label = Label(text='Uitrolstand (%):', font='Courier 8', height=3, width=22, fg='#ffffff', bg=main_color, anchor='w')
+    uitrol_label = Label(text='Uitrolstand (cm):', font='Courier 8', height=3, width=22, fg='#ffffff', bg=main_color, anchor='w')
     apply_btn = Button(text='Apply', width=7, command=lambda: apply_settings([min_slider.get(), max_slider.get(), drempel_slider.get(), manual_var.get(), uitrol_slider.get()]))
 
     main_canvas.create_window(150, 50, window=title)
@@ -100,13 +104,6 @@ def draw_graph():
 
 def draw_navigation():
     left_canvas.delete("all")
-    controller_buttons = [
-        Button(text='Controller 1', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(0)),
-        Button(text='Controller 2', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(1)),
-        Button(text='Controller 3', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(2)),
-        Button(text='Controller 4', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(3)),
-        Button(text='Controller 5', fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(4))]
-
     ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
     offset = 60
     if len(ports) == 0:
@@ -114,8 +111,8 @@ def draw_navigation():
         title = Label(text='Please connect a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
         main_canvas.create_window(150, 50, window=title)
     else:
-        for i in range(len(ports)):
-            button = controller_buttons[i]
+        for i in range(len(arduinos.items())):
+            button = Button(text=arduinos.get(list(arduinos.keys())[i]), fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(i)),
             left_canvas.create_window(90, offset, window=button)
             offset += 45
         if not settings_panel_open:
@@ -143,7 +140,7 @@ def draw_status():
 
 
 number_of_devices = 0
-
+arduinos = {}
 def draw_devices():
     global number_of_devices
     ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
@@ -152,29 +149,33 @@ def draw_devices():
             print('device connected')
         else:
             print('device disconnected')
+            for key in arduinos.keys(): # wel in dict , niet in ports
+                if key in ports:
+                    arduinos.pop(key)
+
         number_of_devices = len(ports)
+        ##
+        for port in ports:
+            global ser
+            try:
+                ser = serial.Serial(port, 9600)
+                while ser.read():
+                    zin = str(ser.readline().lower().decode(encoding='UTF-8'))
+                    if zin.find('lichtsensor') != -1 and arduinos.get(port) == None:
+                        arduinos.update({port: 'Lichtsensor'})
+                    if zin.find('temperatuur') != -1 and arduinos.get(port) == None:
+                        arduinos.update({port: 'Temperatuursensor'})
+                    break
+                ser.close()
+            except serial.serialutil.SerialException:
+                ser.close()
+        print(arduinos)
+
+        ##
         status_bar.after(0, draw_status)
         left_canvas.after(0, draw_navigation)
     root.after(500, draw_devices)
 
-#def read_serial():
-
-    ''''for i in range(10):
-        try:
-            ser = serial.Serial("COM" + str(i), 9600, timeout=3)
-            if ser.read():
-                print('COM' + str(i) + ' open')
-            try:
-                while ser.read():
-                    print('d'+str(ser.readline()[0:-2]))
-                ser.close()
-
-            except serial.serialutil.SerialException:
-                ser.close()
-                continue
-        except serial.serialutil.SerialException:
-            continue
-    '''''
 draw_status()
 draw_navigation()
 draw_devices()
