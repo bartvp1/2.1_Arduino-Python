@@ -1,6 +1,4 @@
 from tkinter import *
-import tkinter.ttk as ttk
-from random import randint
 from pprint import pprint
 import serial.tools.list_ports
 
@@ -18,16 +16,16 @@ left_canvas = Canvas(root, width=200, height=430, bg='#313335', highlightthickne
 main_canvas = Canvas(root, width=600, height=430, bg=main_color, highlightthickness=0)
 status_bar = Canvas(root, width=800, height=20, bg='#2b2b2b', highlightthickness=0)
 
+configuration = [
+    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},
+    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},
+    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},
+    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},
+    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0}]
+
 status_bar.place(x=0, y=430)
 left_canvas.place(x=0, y=0)
 main_canvas.place(x=200, y=0)
-
-configuration = [
-    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},  # controller 1
-    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},  # controller 2
-    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},  # controller 3
-    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},  # controller 4
-    {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0}]  # controller 5
 
 def settings_panel(index):
     global current_controller, settings_panel_open
@@ -66,7 +64,7 @@ def settings_panel(index):
 
     if sensor == 'Temperatuursensor':
         drempel_label = Label(text='Drempelwaarde (°C):', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
-        drempel_slider = Scale(root, from_=-30, to=50, resolution=2, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
+        drempel_slider = Scale(root, from_=-30, to=50, resolution=5, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
 
     main_canvas.delete("all")
     main_canvas.create_window(170, 50, window=title)
@@ -102,21 +100,23 @@ def draw_graph():
         main_canvas.create_line(400, y, 580, y, width=1, dash=(2, 5))
         main_canvas.create_text(395, y, text='%d' % (20 * i), font='Courier 6', anchor=E)
 
-def refresh_ports():
+def get_ports():
     return [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
 
 def refresh_arduinos():
     # map connected arduino in dictionary (key=port, value=sensor type)
-    for port in refresh_ports():
+    for port in get_ports():
         global ser
         try:
             ser = serial.Serial(port, 9600)
             while ser.read():
                 line = str(ser.readline().lower().decode(encoding='UTF-8'))
-                if line.find('lichtsensor') != -1 and arduinos.get(port) is None:
-                    arduinos.update({port: 'Lichtsensor'})
-                if line.find('temperatuur') != -1 and arduinos.get(port) is None:
-                    arduinos.update({port: 'Temperatuursensor'})
+                if arduinos.get(port) is None:
+                    if line.find('lichtsensor') != -1:
+                        arduinos.update({port: 'Lichtsensor'})
+                    if line.find('temperatuur') != -1:
+                        arduinos.update({port: 'Temperatuursensor'})
+                    #TODO: fetch settings from arduino
                 break
             ser.close()
         except serial.serialutil.SerialException:
@@ -125,7 +125,7 @@ def refresh_arduinos():
 def draw_navigation():
     left_canvas.delete("all")
     offset = 60
-    if len(refresh_ports()) == 0:
+    if len(get_ports()) == 0:
         main_canvas.delete("all")
         title = Label(text='Please connect a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
         main_canvas.create_window(150, 50, window=title)
@@ -140,33 +140,32 @@ def draw_navigation():
             main_canvas.create_window(150, 50, window=title)
 
 def apply_settings(obj):
-    #todo: send data to UNO
+    #TODO: send data to UNO
     configuration[current_controller].update({'manual': obj[3], 'manual_extension': obj[4], 'min_extension': obj[0], 'max_extension': obj[1], 'threshold': obj[2]})
     pprint(configuration[current_controller])
 
 def draw_status():
     status_bar.delete("all")
     from_ = 5
-    for i in range(0, len(refresh_ports())):
+    for i in range(0, len(get_ports())):
         status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='#26e300', outline="grey", width=1)
         from_ += 15
-    for i in range(len(refresh_ports()), 6):
+    for i in range(len(get_ports()), 6):
         status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='grey', outline="grey", width=1)
         from_ += 15
-    status_bar.create_text(100, 10, text=str(len(refresh_ports()))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
-
+    status_bar.create_text(100, 10, text=str(len(get_ports()))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
 
 def update_devices():
     global arduinos
-    ports = refresh_ports()
-    print(arduinos, len(ports), len(arduinos))
+    ports = get_ports()
+    print(arduinos, {'ports': len(ports)}, {'arduinos': len(arduinos)})
     if len(ports) != len(arduinos):
 
         if len(ports) > len(arduinos):
-            print('device connected')
+            print(str(len(ports)-len(arduinos))+' device connected')
 
         elif len(ports) < len(arduinos):
-            print('device disconnected')
+            print(str(len(arduinos)-len(ports))+' device disconnected')
 
         arduinos.clear()
         refresh_arduinos()
@@ -174,6 +173,7 @@ def update_devices():
         left_canvas.after(0, draw_navigation)
 
     root.after(500, update_devices)
+
 
 draw_status()
 draw_navigation()
