@@ -2,7 +2,6 @@ from tkinter import *
 import tkinter.ttk as ttk
 from random import randint
 from pprint import pprint
-#import serial
 import serial.tools.list_ports
 import time
 
@@ -13,6 +12,9 @@ root.geometry("800x450")
 
 main_color = '#3c3f41'
 settings_panel_open = False
+current_controller = -1
+number_of_devices = 0
+arduinos = {}
 
 left_canvas = Canvas(root, width=200, height=430, bg='#313335', highlightthickness=0)
 main_canvas = Canvas(root, width=600, height=430, bg=main_color, highlightthickness=0)
@@ -28,8 +30,6 @@ configuration = [
     {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},  # controller 3
     {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0},  # controller 4
     {'manual': False, 'manual_extension': 0, 'min_extension': 0, 'max_extension': 100, 'threshold': 0}]  # controller 5
-
-current_controller = -1
 
 def settings_panel(index):
     global current_controller, settings_panel_open, drempel_slider, drempel_label
@@ -102,9 +102,31 @@ def draw_graph():
         main_canvas.create_line(400, y, 580, y, width=1, dash=(2, 5))
         main_canvas.create_text(395, y, text='%d' % (20 * i), font='Courier 6', anchor=E)
 
+def refresh_ports():
+    global ports, number_of_devices
+    # get all connected arduinos
+    ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
+
+    # list connected arduino in dictionary (key=port)
+    for port in ports:
+        global ser
+        try:
+            ser = serial.Serial(port, 9600)
+            while ser.read():
+                line = str(ser.readline().lower().decode(encoding='UTF-8'))
+                if line.find('lichtsensor') != -1 and arduinos.get(port) is None:
+                    arduinos.update({port: 'Lichtsensor'})
+                if line.find('temperatuur') != -1 and arduinos.get(port) is None:
+                    arduinos.update({port: 'Temperatuursensor'})
+                break
+            ser.close()
+        except serial.serialutil.SerialException:
+            ser.close()
+    print(arduinos)
+
 def draw_navigation():
     left_canvas.delete("all")
-    ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
+    refresh_ports()
     offset = 60
     if len(ports) == 0:
         main_canvas.delete("all")
@@ -127,51 +149,32 @@ def apply_settings(obj):
 
 def draw_status():
     status_bar.delete("all")
-    ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
-    #print(len(ports))
+    refresh_ports()
     from_ = 5
     for i in range(0, len(ports)):
-        status_bolletje = status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='#26e300', outline="grey", width=1)
+        status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='#26e300', outline="grey", width=1)
         from_ += 15
     for i in range(len(ports), 6):
-        status_bolletje = status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='grey', outline="grey", width=1)
+        status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='grey', outline="grey", width=1)
         from_ += 15
     status_bar.create_text(100, 10, text=str(len(ports))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
 
 
-number_of_devices = 0
-arduinos = {}
 def draw_devices():
     global number_of_devices
-    ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
+    refresh_ports()
     if len(ports) != number_of_devices:
         if len(ports) > number_of_devices:
             print('device connected')
+            number_of_devices = len(ports)
         else:
             print('device disconnected')
             for key in arduinos.keys(): # wel in dict , niet in ports
                 if key in ports:
                     arduinos.pop(key)
+                    refresh_ports()
+                    number_of_devices = len(ports)
 
-        number_of_devices = len(ports)
-        ##
-        for port in ports:
-            global ser
-            try:
-                ser = serial.Serial(port, 9600)
-                while ser.read():
-                    zin = str(ser.readline().lower().decode(encoding='UTF-8'))
-                    if zin.find('lichtsensor') != -1 and arduinos.get(port) == None:
-                        arduinos.update({port: 'Lichtsensor'})
-                    if zin.find('temperatuur') != -1 and arduinos.get(port) == None:
-                        arduinos.update({port: 'Temperatuursensor'})
-                    break
-                ser.close()
-            except serial.serialutil.SerialException:
-                ser.close()
-        print(arduinos)
-
-        ##
         status_bar.after(0, draw_status)
         left_canvas.after(0, draw_navigation)
     root.after(500, draw_devices)
