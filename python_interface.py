@@ -109,7 +109,6 @@ def draw_navigation():
 
     ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
     offset = 60
-
     if len(ports) == 0:
         main_canvas.delete("all")
         title = Label(text='Please connect a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
@@ -123,7 +122,6 @@ def draw_navigation():
             main_canvas.delete("all")
             title = Label(text='Please select a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
             main_canvas.create_window(150, 50, window=title)
-    #left_canvas.after(1000, draw_navigation)
 
 def apply_settings(obj):
     #todo: send data to UNO
@@ -141,9 +139,8 @@ def draw_status():
     for i in range(len(ports), 6):
         status_bolletje = status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='grey', outline="grey", width=1)
         from_ += 15
-    status6 = status_bar.create_text(100, 10, text=str(len(ports))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
-    #status_bar.after(500, draw_status)
-    #left_canvas.after(1000, draw_navigation)
+    status_bar.create_text(100, 10, text=str(len(ports))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
+
 
 number_of_devices = 0
 
@@ -151,8 +148,11 @@ def draw_devices():
     global number_of_devices
     ports = [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
     if len(ports) != number_of_devices:
+        if len(ports) > number_of_devices:
+            print('device connected')
+        else:
+            print('device disconnected')
         number_of_devices = len(ports)
-        print('x')
         status_bar.after(0, draw_status)
         left_canvas.after(0, draw_navigation)
     root.after(500, draw_devices)
@@ -175,7 +175,8 @@ def draw_devices():
         except serial.serialutil.SerialException:
             continue
     '''''
-
-draw_devices()
 draw_status()
+draw_navigation()
+draw_devices()
+print([p.hwid for p in serial.tools.list_ports.comports()])
 root.mainloop()
