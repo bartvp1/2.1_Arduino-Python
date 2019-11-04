@@ -112,7 +112,7 @@ def refresh_arduinos():
             while ser.read():
                 line = str(ser.readline().lower().decode(encoding='UTF-8'))
                 if arduinos.get(port) is None:
-                    if line.find('lichtsensor') != -1:
+                    if line.find('licht') != -1:
                         arduinos.update({port: 'Lichtsensor'})
                     if line.find('temperatuur') != -1:
                         arduinos.update({port: 'Temperatuursensor'})
@@ -140,9 +140,15 @@ def draw_navigation():
             main_canvas.create_window(150, 50, window=title)
 
 def apply_settings(obj):
-    #TODO: send data to UNO
     configuration[current_controller].update({'manual': obj[3], 'manual_extension': obj[4], 'min_extension': obj[0], 'max_extension': obj[1], 'threshold': obj[2]})
-    pprint(configuration[current_controller])
+    print(configuration[current_controller])
+
+    # TODO: send data to UNO
+    current_port = list(arduinos.keys())[current_controller]
+    print(current_port)
+    ser = serial.Serial(current_port, 9600)
+    ser.flushInput()
+    ser.write("a".encode())
 
 def draw_status():
     status_bar.delete("all")
