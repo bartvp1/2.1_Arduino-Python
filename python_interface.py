@@ -24,6 +24,7 @@ main_canvas.place(x=200, y=0)
 
 
 def settings_panel(port):
+    print('settings_panel(): '+str(port))
     global current_port, settings_panel_open
     settings_panel_open = not settings_panel_open
     current_port = port
@@ -60,15 +61,16 @@ def settings_panel(port):
     if sensor == 'Lichtsensor':
         drempel_label = Label(text='Drempelwaarde (lux)', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor=W)
         drempel_slider = Scale(root, from_=0, to=300, resolution=5, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
+        main_canvas.create_window(100, 100, window=maximale_uitrolstand_label)
 
     if sensor == 'Temperatuursensor':
         drempel_label = Label(text='Drempelwaarde (°C)', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
         drempel_slider = Scale(root, from_=-30, to=50, resolution=5, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
+        main_canvas.create_window(150, 100, window=maximale_uitrolstand_label)
 
     main_canvas.delete("all")
     main_canvas.create_window(145, 50, window=title)
-    main_canvas.create_window(100, 100, window=maximale_uitrolstand_label)
-    main_canvas.create_window(190, 100, window=maximale_uitrolstand_entry, anchor=W)
+    main_canvas.create_window(190, 100, window=maximale_uitrolstand_entry)
     main_canvas.create_window(100, 140, window=min_label)
     main_canvas.create_window(240, 130, window=min_slider)
     main_canvas.create_window(100, 180, window=max_label)
@@ -181,11 +183,13 @@ def update_devices():
         elif len(ports) < len(arduinos):
             print(str(len(arduinos)-len(ports))+' device disconnected')
 
+        print('1')
         arduinos.clear()
+        print('2')
         refresh_arduinos()
+        print('3')
         status_bar.after(0, draw_status)
         left_canvas.after(0, draw_navigation)
-
     root.after(500, update_devices)
 
 
