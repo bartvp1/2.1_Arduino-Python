@@ -112,6 +112,7 @@ def refresh_arduinos():
         global ser
         try:
             ser = serial.Serial(port, 9600)
+            ser.flushOutput()
             while ser.read():
                 print(ser.readline().decode())
                 line = ""
@@ -120,11 +121,11 @@ def refresh_arduinos():
                 except:
                     continue
                 print(line)
-                if arduinos.get(port) is None:
-                    if line.find('licht') != -1:
-                        arduinos.update({port: 'Lichtsensor'})
-                    if line.find('temperatuur') != -1:
-                        arduinos.update({port: 'Temperatuursensor'})
+                #if arduinos.get(port) is None:
+                if line.find('licht') != -1:
+                    arduinos.update({port: 'Lichtsensor'})
+                if line.find('temperatuur') != -1:
+                    arduinos.update({port: 'Temperatuursensor'})
                     #TODO: fetch settings from arduino
                 break
             ser.close()
@@ -157,20 +158,20 @@ def apply_settings(obj):
 
     # TODO: send data to UNO
     print(current_port, configuration[current_port])
-    ser = serial.Serial(current_port, 9600)
-    ser.flushInput()
-    ser.write("rollIn".encode())
+    serOutput = serial.Serial(current_port, 9600)
+    serOutput.flushInput()
+    serOutput.write("settings{}".encode())
 
 def draw_status():
     status_bar.delete("all")
     from_ = 5
-    for i in range(0, len(get_ports())):
+    for i in range(0, len(arduinos)):
         status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='#26e300', outline="grey", width=1)
         from_ += 15
-    for i in range(len(get_ports()), 6):
+    for i in range(len(arduinos), 6):
         status_bar.create_oval(from_, 5, 15*(i+1), 15, fill='grey', outline="grey", width=1)
         from_ += 15
-    status_bar.create_text(100, 10, text=str(len(get_ports()))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
+    status_bar.create_text(100, 10, text=str(len(arduinos))+'/5 controllers connected', fill='white', font='Courier 8', anchor=W)
 
 def update_devices():
     global arduinos
@@ -184,11 +185,8 @@ def update_devices():
         elif len(ports) < len(arduinos):
             print(str(len(arduinos)-len(ports))+' device disconnected')
 
-        print('1')
         arduinos.clear()
-        print('2')
         refresh_arduinos()
-        print('3')
         status_bar.after(0, draw_status)
         left_canvas.after(0, draw_navigation)
     root.after(500, update_devices)
