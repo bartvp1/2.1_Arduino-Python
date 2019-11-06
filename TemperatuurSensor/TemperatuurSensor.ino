@@ -47,7 +47,7 @@ void setup() {
 
   Serial.begin(9600);
   Serial.flush();
-  Serial.write("temperatuursensor\n");
+  Serial.print("temperatuursensor\n");
 }
 
 void loop() {

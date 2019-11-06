@@ -28,7 +28,7 @@ def settings_panel(port):
     global current_port, settings_panel_open
     settings_panel_open = not settings_panel_open
     current_port = port
-    sensor = arduinos.get(port)
+    sensor = arduinos.get(current_port)
     title = Label(text=sensor+" configuration", font='Courier 12 bold', bg=main_color, fg='#ffffff', anchor=W)
     sv = StringVar(root, 100)
     maximale_uitrolstand_entry = Entry(root, textvariable=sv, width=4)
@@ -38,16 +38,6 @@ def settings_panel(port):
     uitrol_slider = Scale(root, from_=0, to=100, resolution=5, orient=HORIZONTAL, fg='#ffffff', bg=main_color, borderwidth="0", highlightthickness=0)
     manual_var = BooleanVar()
     manual_button = Checkbutton(root, selectcolor=main_color, bg=main_color, highlightthickness=0, activebackground=main_color, activeforeground='#ffffff', fg='#ffffff', variable=manual_var)
-
-    drempel_slider.set(configuration[port]['threshold'])
-    max_slider.set(configuration[port]['auto_max_extension'])
-    min_slider.set(configuration[port]['auto_min_extension'])
-    uitrol_slider.set(configuration[port]['manual_extension'])
-
-    if configuration[port]['manual']:
-        manual_button.select()
-    else:
-        manual_button.deselect()
 
     maximale_uitrolstand_label = Label(text='Maximale hoogte (cm)', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor=W)
     min_label = Label(text='Min. uitrolstand (%)', font=("Courier", 8), fg='#ffffff', height=3, width=22, bg=main_color, anchor=W)
@@ -61,28 +51,41 @@ def settings_panel(port):
     if sensor == 'Lichtsensor':
         drempel_label = Label(text='Drempelwaarde (lux)', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor=W)
         drempel_slider = Scale(root, from_=0, to=300, resolution=5, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
-        main_canvas.create_window(100, 100, window=maximale_uitrolstand_label)
 
     if sensor == 'Temperatuursensor':
         drempel_label = Label(text='Drempelwaarde (°C)', font='Courier 8', fg='#ffffff', height=3, width=22, bg=main_color, anchor='w')
         drempel_slider = Scale(root, from_=-30, to=50, resolution=5, orient=HORIZONTAL, bg=main_color, fg='#ffffff', borderwidth="0", highlightthickness=0)
-        main_canvas.create_window(150, 100, window=maximale_uitrolstand_label)
+
+    if current_port in configuration:
+
+        max_slider.set(configuration[current_port]['auto_max_extension'])
+        min_slider.set(configuration[current_port]['auto_min_extension'])
+        drempel_slider.set(configuration[current_port]['threshold'])
+        uitrol_slider.set(configuration[current_port]['manual_extension'])
+
+        if configuration[current_port]['manual']:
+            manual_button.select()
+        else:
+            manual_button.deselect()
 
     main_canvas.delete("all")
-    main_canvas.create_window(145, 50, window=title)
-    main_canvas.create_window(190, 100, window=maximale_uitrolstand_entry)
-    main_canvas.create_window(100, 140, window=min_label)
-    main_canvas.create_window(240, 130, window=min_slider)
-    main_canvas.create_window(100, 180, window=max_label)
-    main_canvas.create_window(240, 170, window=max_slider)
-    main_canvas.create_window(100, 220, window=drempel_label)
-    main_canvas.create_window(240, 210, window=drempel_slider)
-    main_canvas.create_window(190, 280, window=manual_warning)
-    main_canvas.create_window(100, 320, window=manual_label)
-    main_canvas.create_window(200, 320, window=manual_button)
-    main_canvas.create_window(100, 360, window=uitrol_label)
-    main_canvas.create_window(240, 350, window=uitrol_slider)
-    main_canvas.create_window(260, 400, window=apply_btn)
+    x1 = 15
+    x2 = 200
+    main_canvas.create_window(x1, 50, window=title, anchor=W)
+    main_canvas.create_window(x1, 100, window=maximale_uitrolstand_label, anchor=W)
+    main_canvas.create_window(x2, 100, window=maximale_uitrolstand_entry, anchor=W)
+    main_canvas.create_window(x1, 140, window=min_label, anchor=W)
+    main_canvas.create_window(x2, 130, window=min_slider, anchor=W)
+    main_canvas.create_window(x1, 180, window=max_label, anchor=W)
+    main_canvas.create_window(x2, 170, window=max_slider, anchor=W)
+    main_canvas.create_window(x1, 220, window=drempel_label, anchor=W)
+    main_canvas.create_window(x2, 210, window=drempel_slider, anchor=W)
+    main_canvas.create_window(x1, 280, window=manual_warning, anchor=W)
+    main_canvas.create_window(x1, 320, window=manual_label, anchor=W)
+    main_canvas.create_window(x2, 320, window=manual_button, anchor=W)
+    main_canvas.create_window(x1, 360, window=uitrol_label, anchor=W)
+    main_canvas.create_window(x2, 350, window=uitrol_slider, anchor=W)
+    main_canvas.create_window(240, 400, window=apply_btn, anchor=W)
 
 def draw_graph():
     posx, posy, width, height = 400, 120, 180, 80
@@ -107,30 +110,25 @@ def get_ports():
     return [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
 
 def refresh_arduinos():
+    arduinos.clear()
     # map connected arduino in dictionary (key=port, value=sensor type)
     for port in get_ports():
-        global ser
+        ser = serial.Serial()
         try:
             ser = serial.Serial(port, 9600)
-            ser.flushOutput()
-            while ser.read():
-                print(ser.readline().decode())
-                line = ""
-                try:
-                    line = str(ser.readline().lower().decode())
-                except:
-                    continue
+            while True:
+                line = str(ser.readline().decode())
                 print(line)
                 #if arduinos.get(port) is None:
                 if line.find('licht') != -1:
                     arduinos.update({port: 'Lichtsensor'})
                 if line.find('temperatuur') != -1:
                     arduinos.update({port: 'Temperatuursensor'})
-                    #TODO: fetch settings from arduino
                 break
-            ser.close()
+                #TODO: fetch settings from arduino
         except serial.serialutil.SerialException:
             ser.close()
+        ser.close()
 
 def draw_navigation():
     left_canvas.delete("all")
@@ -154,7 +152,7 @@ def apply_settings(obj):
         uitrol = int(obj[0])
     except:
         uitrol = 100
-    configuration[current_port].update({'max_extension': uitrol, 'auto_min_extension': obj[1], 'auto_max_extension': obj[2], 'threshold': obj[3], 'manual': obj[4], 'manual_extension': obj[5]})
+    configuration.update({current_port: {'max_extension': uitrol, 'auto_min_extension': obj[1], 'auto_max_extension': obj[2], 'threshold': obj[3], 'manual': obj[4], 'manual_extension': obj[5]}})
 
     # TODO: send data to UNO
     print(current_port, configuration[current_port])
@@ -176,16 +174,14 @@ def draw_status():
 def update_devices():
     global arduinos
     ports = get_ports()
-    print(arduinos, {'ports': len(ports)}, {'arduinos': len(arduinos)})
+    # print(arduinos, {'ports': len(ports)}, {'arduinos': len(arduinos)})
     if len(ports) != len(arduinos):
 
         if len(ports) > len(arduinos):
             print(str(len(ports)-len(arduinos))+' device connected')
-
         elif len(ports) < len(arduinos):
             print(str(len(arduinos)-len(ports))+' device disconnected')
 
-        arduinos.clear()
         refresh_arduinos()
         status_bar.after(0, draw_status)
         left_canvas.after(0, draw_navigation)
