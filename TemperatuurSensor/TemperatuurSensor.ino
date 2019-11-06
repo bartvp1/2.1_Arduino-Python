@@ -34,8 +34,6 @@ int maxRoll = 50;
 int temp_gem;
 
 void setup() {
-
-  Serial.begin(9600);
   pinMode(LED, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
@@ -46,7 +44,9 @@ void setup() {
   digitalWrite(LED2, LOW);
   digitalWrite(LED3, LOW);
   digitalWrite(LED4, LOW);
- 
+
+  Serial.begin(9600);
+  Serial.flush();
   Serial.write("temperatuursensor\n");
 }
 

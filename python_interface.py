@@ -114,6 +114,7 @@ def refresh_arduinos():
             ser = serial.Serial(port, 9600)
             while ser.read():
                 print(ser.readline().decode())
+                line = ""
                 try:
                     line = str(ser.readline().lower().decode())
                 except:
