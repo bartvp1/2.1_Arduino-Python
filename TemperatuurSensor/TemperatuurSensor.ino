@@ -1,5 +1,3 @@
-#include <TM1638.h>
-
 const int LED = 2;
 const int LED2 = 3;
 const int LED3 = 4;
@@ -10,8 +8,6 @@ const int diopin = 8;
 const int stbpin = 9;
 const int clkpin = 10;
 const int temperatuurSensor = A0;
-
-TM1638 module(diopin, clkpin, stbpin);
 
 int basisTemperatuur = 22;
 int ingerold = 0;
@@ -57,14 +53,15 @@ void loop() {
   float voltage = sensorInput * (5000/1024);
   temperatuur= (voltage - 500) / 10.0;
   temp_sum += temperatuur;
-  
-  if (i%10==9) { // elke 10 ticks
-    temp_gem = (temp_sum / 10);
+
+  int interval = 10; //elke 10 ticks
+  if (i%interval==9) {
+    temp_gem = (temp_sum / interval);
     afstand = berekenAfstand();
     temp_sum = 0;
     
     String temp_gem_s = "temp="+(String)temp_gem+"\n";
-    for (int x = 0; x < temp_gem_s.length(); x++){
+    for (int x = 0; x < strlen(temp_gem_s); x++){
       Serial.print(temp_gem_s[x]);   // Push each char 1 by 1 on each loop pass
     }
   }
