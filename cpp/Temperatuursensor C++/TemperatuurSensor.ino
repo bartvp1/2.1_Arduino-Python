@@ -56,15 +56,14 @@ void loop() {
   float voltage = sensorInput * (5000/1024);
   temperatuur= (voltage - 500) / 10.0;
   temp_sum += temperatuur;
-
-  int interval = 10; //elke 10 ticks
-  if (i%interval==9) {
-    temp_gem = (temp_sum / interval);
+  
+  if (i%10==9) { // elke 10 ticks
+    temp_gem = (temp_sum / 10);
     afstand = berekenAfstand();
     temp_sum = 0;
     
     String temp_gem_s = "temp="+(String)temp_gem+"\n";
-    for (int x = 0; x < strlen(temp_gem_s); x++){
+    for (int x = 0; x < temp_gem_s.length(); x++){
       Serial.print(temp_gem_s[x]);   // Push each char 1 by 1 on each loop pass
     }
   }
