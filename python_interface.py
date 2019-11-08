@@ -116,21 +116,43 @@ def refresh_arduinos():
         ser = serial.Serial()
         try:
             ser = serial.Serial(port, 9600)
-            while True:
-                line = str(ser.readline().decode())
-                print(line)
-                #if arduinos.get(port) is None:
-                if line.find('licht') != -1:
-                    arduinos.update({port: 'Lichtsensor'})
-                if line.find('temperatuur') != -1:
-                    arduinos.update({port: 'Temperatuursensor'})
-                break
+            line = str(ser.readline().decode())
+            print(line)
+            if line.find('licht') != -1:
+                arduinos.update({port: 'Lichtsensor'})
+            if line.find('temperatuur') != -1:
+                arduinos.update({port: 'Temperatuursensor'})
                 #TODO: fetch settings from arduino
         except serial.serialutil.SerialException:
             ser.close()
         ser.close()
 
+licht = []
+temperatuur = []
+def read_serial():
+    ser = serial.Serial()
+    for port in arduinos:
+        try:
+            ser = serial.Serial(port, 9600)
+            while ser.read():
+                line = str(ser.readline().decode())
+                print(line)
+                if line.find("l=") is not -1:
+                    waarde = line[line.find("l="):]
+                    print("l:"+waarde)
+                    licht.append(waarde)
+                if line.find("t=") is not -1:
+                    waarde = line[line.find("t="):]
+                    print('t: '+waarde)
+                    licht.append(waarde)
+                break
+        except serial.serialutil.SerialException:
+            print("serial failed")
+        ser.close()
+    root.after(100, read_serial)
+
 def draw_navigation():
+    from functools import partial
     left_canvas.delete("all")
     offset = 60
     if len(get_ports()) == 0:
@@ -139,8 +161,7 @@ def draw_navigation():
         main_canvas.create_window(150, 50, window=title)
     else:
         for i in arduinos.keys():
-            button = Button(text=arduinos.get(i), fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=lambda: settings_panel(i)),
-            left_canvas.create_window(90, offset, window=button)
+            left_canvas.create_window(90, offset, window=Button(text=arduinos.get(i), fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=partial(settings_panel, i)))
             offset += 45
         if not settings_panel_open:
             main_canvas.delete("all")
@@ -156,7 +177,7 @@ def apply_settings(obj):
 
     # TODO: send data to UNO
     print(current_port, configuration[current_port])
-    serOutput = serial.Serial(current_port, 9600)
+    serOutput = serial.Serial(current_port, 19200)
     serOutput.flushInput()
     serOutput.write("settings{}".encode())
 
@@ -174,7 +195,7 @@ def draw_status():
 def update_devices():
     global arduinos
     ports = get_ports()
-    # print(arduinos, {'ports': len(ports)}, {'arduinos': len(arduinos)})
+    #print(arduinos, {'ports': len(ports)}, {'arduinos': len(arduinos)})
     if len(ports) != len(arduinos):
 
         if len(ports) > len(arduinos):
@@ -188,7 +209,9 @@ def update_devices():
     root.after(500, update_devices)
 
 
+
 draw_status()
 draw_navigation()
 update_devices()
+#read_serial()
 root.mainloop()
