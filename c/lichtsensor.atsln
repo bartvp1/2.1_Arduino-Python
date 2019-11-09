@@ -1,7 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Atmel Studio Solution File, Format Version 11.00
-Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "arduino_rollende_luiken", "arduino_rollende_luiken\arduino_rollende_luiken.cproj", "{EB59C28F-6B5B-4137-8472-D600D73D4CF5}"
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "lichtsensor", "lichtsensor\lichtsensor.cproj", "{EB59C28F-6B5B-4137-8472-D600D73D4CF5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

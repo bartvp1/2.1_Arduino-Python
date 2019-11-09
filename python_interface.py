@@ -11,6 +11,7 @@ main_color = '#3c3f41'
 settings_panel_open = False
 current_port = ""
 arduinos = {}
+serials = {}
 
 left_canvas = Canvas(root, width=200, height=430, bg='#313335', highlightthickness=0)
 main_canvas = Canvas(root, width=600, height=430, bg=main_color, highlightthickness=0)
@@ -116,39 +117,36 @@ def refresh_arduinos():
         ser = serial.Serial()
         try:
             ser = serial.Serial(port, 9600)
+            serials.update({port: ser})
             line = str(ser.readline().decode())
             print(line)
             if line.find('licht') != -1:
                 arduinos.update({port: 'Lichtsensor'})
             if line.find('temperatuur') != -1:
                 arduinos.update({port: 'Temperatuursensor'})
-                #TODO: fetch settings from arduino
         except serial.serialutil.SerialException:
+            print("serial connection failed")
             ser.close()
-        ser.close()
+
 
 licht = []
 temperatuur = []
 def read_serial():
-    ser = serial.Serial()
     for port in arduinos:
-        try:
-            ser = serial.Serial(port, 9600)
-            while ser.read():
-                line = str(ser.readline().decode())
-                print(line)
-                if line.find("l=") is not -1:
-                    waarde = line[line.find("l="):]
-                    print("l:"+waarde)
-                    licht.append(waarde)
-                if line.find("t=") is not -1:
-                    waarde = line[line.find("t="):]
-                    print('t: '+waarde)
-                    licht.append(waarde)
-                break
-        except serial.serialutil.SerialException:
-            print("serial failed")
-        ser.close()
+        ser = serials.get(port)
+        while ser.read():
+            line = str(ser.readline().decode())
+            print(line)
+            if line.find("l=") is not -1:
+                waarde = line[line.find("l="):]
+                print("l:"+waarde)
+                licht.append(waarde)
+            if line.find("t=") is not -1:
+                waarde = line[line.find("t="):]
+                print('t: '+waarde)
+                licht.append(waarde)
+            break
+
     root.after(100, read_serial)
 
 def draw_navigation():
@@ -177,9 +175,9 @@ def apply_settings(obj):
 
     # TODO: send data to UNO
     print(current_port, configuration[current_port])
-    serOutput = serial.Serial(current_port, 19200)
+    serOutput = serials.get(current_port)
     serOutput.flushInput()
-    serOutput.write("settings{}".encode())
+    serOutput.write(str(configuration[current_port]).encode())
 
 def draw_status():
     status_bar.delete("all")

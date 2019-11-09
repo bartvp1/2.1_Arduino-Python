@@ -6,6 +6,8 @@
  */
 
 #include "serial.h"
+#include <stdlib.h>
+#include <string.h>
 
 void uart_init(void) 
 {
@@ -52,6 +54,12 @@ void uart_transmit_int(unsigned int data)
 	uart_transmit_char(rest);
 }
 
+void uart_transmit_string (unsigned char data[]){
+	for(int i=0;strlen(data)>i;i++){
+		uart_transmit_char(data[i]);
+	}
+	uart_transmit_char('\n');
+}
 int from_ascii_to_digit(char a)
 {
 	return a - 48;
