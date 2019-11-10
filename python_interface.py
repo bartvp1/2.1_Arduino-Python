@@ -1,5 +1,5 @@
 from tkinter import *
-from pprint import pprint
+from functools import partial
 import serial.tools.list_ports
 
 root = Tk()
@@ -12,6 +12,7 @@ settings_panel_open = False
 current_port = ""
 arduinos = {}
 serials = {}
+reading = False
 
 left_canvas = Canvas(root, width=200, height=430, bg='#313335', highlightthickness=0)
 main_canvas = Canvas(root, width=600, height=430, bg=main_color, highlightthickness=0)
@@ -134,23 +135,22 @@ temperatuur = []
 def read_serial():
     for port in arduinos:
         ser = serials.get(port)
-        while ser.read():
-            line = str(ser.readline().decode())
-            print(line)
+        line = str(ser.readline().decode())
+        while int(line.find("\n")) != -1:
+            #print("serial_receive: "+line)
             if line.find("l=") is not -1:
-                waarde = line[line.find("l="):]
+                waarde = line[line.find("l=")+2:-1]
                 print("l:"+waarde)
-                licht.append(waarde)
+                licht.append(int(waarde))
             if line.find("t=") is not -1:
-                waarde = line[line.find("t="):]
-                print('t: '+waarde)
-                licht.append(waarde)
+                waarde = line[line.find("t=")+2:-1]
+                temperatuur.append(int(waarde))
+            print("licht: "+str(licht)+"\ntemperatuur: "+str(temperatuur)+"\n")
             break
-
-    root.after(100, read_serial)
+    root.after(6000, read_serial)
 
 def draw_navigation():
-    from functools import partial
+    global reading
     left_canvas.delete("all")
     offset = 60
     if len(get_ports()) == 0:
@@ -165,6 +165,9 @@ def draw_navigation():
             main_canvas.delete("all")
             title = Label(text='Please select a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
             main_canvas.create_window(150, 50, window=title)
+    if not reading:
+        reading = True
+        read_serial()
 
 def apply_settings(obj):
     try:
@@ -211,5 +214,4 @@ def update_devices():
 draw_status()
 draw_navigation()
 update_devices()
-#read_serial()
 root.mainloop()

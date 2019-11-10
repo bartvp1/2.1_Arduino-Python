@@ -30,8 +30,7 @@ volatile double licht_intens;	// value of light sensitivity
 
 uint8_t afstand_max = 65;	// max distance roller shutter
 uint8_t afstand_min = 5;	// min distance roller shutter
-uint8_t licht_min = 15;		// min light intensity
-uint8_t licht_max = 65;		// max light intensity
+uint8_t licht_drempelwaarde = 60;	// hierboven moet het rolgordijn dicht
 uint8_t manual_bool = 0;	// make decisions based on sensor data or not
 typedef enum{NONE = -1, INROLLEN = 0, UITROLLEN = 1, INGEROLD = 2, UITGEROLD = 3} mode_t;
 mode_t mode = NONE;
@@ -130,7 +129,7 @@ uint16_t berekenafstand(void)
 
 void check_afstand(void){
 	afstand = berekenafstand();
-	
+	_delay_ms(50);
 	if(afstand >= afstand_max && afstand <= afstand_min) // afstand zit tussen de randwaarden
 	{
 		if(mode == UITGEROLD){
@@ -193,11 +192,11 @@ void licht_controle()
   licht_intens = lichtwaarde;
   
   
-  if (lichtwaarde >= licht_max)
+  if (lichtwaarde >= licht_drempelwaarde)
   {
     mode = UITROLLEN;
   }
-  else if (lichtwaarde <= licht_min)
+  else if (lichtwaarde <= licht_drempelwaarde)
   {
     mode = INROLLEN;
   }
@@ -242,9 +241,9 @@ int main(void)
   
   int tasks[4];
     
-  tasks[0] = SCH_Add_Task(binnenkomend, 0, 10);		// every 10ms: check if python send data
+  tasks[0] = SCH_Add_Task(binnenkomend, 0, 1);		// every 10ms: check if python send data
   tasks[1] = SCH_Add_Task(check_afstand, 0, 1);		// check the state of the roller shutter
-  tasks[2] = SCH_Add_Task(licht_controle, 0, 4000);	// every 4s: check light intensity
+  tasks[2] = SCH_Add_Task(licht_controle, 0, 300);	// every 3s: check light intensity
   tasks[3] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
     
   sei();            // Set interrupt flag

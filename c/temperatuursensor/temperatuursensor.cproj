@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectVersion>7.0</ProjectVersion>
     <ToolchainName>com.Atmel.AVRGCC8.C</ToolchainName>
-    <ProjectGuid>{8575fa93-507d-4036-b726-3b73d8fdad14}</ProjectGuid>
+    <ProjectGuid>{eb59c28f-6b5b-4137-8472-d600d73d4cf5}</ProjectGuid>
     <avrdevice>ATmega328P</avrdevice>
     <avrdeviceseries>none</avrdeviceseries>
     <OutputType>Executable</OutputType>
@@ -12,9 +12,9 @@
     <OutputFileName>$(MSBuildProjectName)</OutputFileName>
     <OutputFileExtension>.elf</OutputFileExtension>
     <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
-    <AssemblyName>lichtsensor</AssemblyName>
-    <Name>lichtsensor</Name>
-    <RootNamespace>lichtsensor</RootNamespace>
+    <AssemblyName>temperatuursensor</AssemblyName>
+    <Name>temperatuursensor</Name>
+    <RootNamespace>temperatuursensor</RootNamespace>
     <ToolchainFlavour>Native</ToolchainFlavour>
     <KeepTimersRunning>true</KeepTimersRunning>
     <OverrideVtor>false</OverrideVtor>
