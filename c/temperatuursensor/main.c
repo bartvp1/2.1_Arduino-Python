@@ -157,15 +157,14 @@ void temperatuur_controle()
 
 void binnenkomend() 
 {
-	char str[] = "";
-	char received = uart_recieve();
-	if (strlen(received)>0){
-		strncat(str, received, 1);
-	}
-	if(strlen(str)>0){
-		uart_transmit_char(str);
-	//char str[] = "";
-	}
+	uint8_t ascii_val = 0;
+	ascii_val = uart_recieve();
+	_delay_us(15);
+	//if(ascii_val > (uint8_t)17){
+	uart_transmit_char((uint8_t)ascii_val);
+		//uart_transmit_char('\n');
+		//uart_transmit_string("k found!");
+	//}
 	
 	
 	//~TODO~
