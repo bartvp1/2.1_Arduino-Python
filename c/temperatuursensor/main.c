@@ -15,10 +15,11 @@
 #include "schedular.h"
 #include "serial.h"
 
-typedef enum{NONE = 1, INROLLEN = 2, INGEROLD = 3, UITROLLEN = 4, UITGEROLD = 5, MANUAL = 6} mode_t;
-typedef enum{OFF = 0, ON = 1} toggle;
+typedef enum{NONE = 1, INROLLEN = 2, INGEROLD = 3, UITROLLEN = 4, UITGEROLD = 5} mode_t;
+typedef enum{OFF, FALSE = 0, ON, TRUE = 1} toggle;
 mode_t mode = NONE;
 mode_t prev_mode = NONE;
+toggle manual = FALSE;
 
 const int trigPin = 2;      // Trigger		PD2
 const int echoPin = 3;      // Echo			PD3
@@ -155,64 +156,55 @@ void temperatuur_controle()
   previous_temp = temperatuurwaarde;
 }
 
+
 void binnenkomend() 
 {
-	uint8_t ascii_val = 0;
-	ascii_val = uart_recieve();
-	_delay_us(15);
-	//if(ascii_val > (uint8_t)17){
-	uart_transmit_char((uint8_t)ascii_val);
-		//uart_transmit_char('\n');
-		//uart_transmit_string("k found!");
-	//}
+	char ascii_val = '0';
+	char *stri = "---";
 	
-	
-	//~TODO~
-	// in of uit rollen
-	/*
-	char string[20] = "";
-	uint8_t i = 0;
-	while(uart_recieve()){
-		string[i] = uart_recieve();
-		i++;
-		if(i==19){
-			break;
+		ascii_val = uart_receive();
+		int count=0;
+		if(ascii_val=='{'){
+			while(1){
+				ascii_val = uart_receive();
+				if (ascii_val == '}'){
+					break;
+				}
+				//stri[count] = ascii_val;
+				printf(stri[count], "%s", ascii_val);
+				count+=1;
+			}
+			//stri[count+1] = '\0';
+			
+			//if (strlen(stri)>0){
+			uart_transmit_string(stri);
+			line_break();
+			//memset(stri, 0, sizeof(stri));
+			//stri[0] = '\0';
+
+			//}
 		}
-	}
-	if(strlen(string)>0){
-		uart_transmit_string(string);
-	}
-	string[20] = "";
-	*/
+	
+	
+	/*********
+	 set manual: TRUE / FALSE
+	 set UITROLLEN
+	 set afstand_max: x
+	 set afstand_min: x
+	
+	*********/
 }
 
 void verzend_info()
 { 
-  uart_transmit_char('t');
-  uart_transmit_char('=');
+  uart_transmit_string("t=");
   uart_transmit_int(temperatuurwaarde);
-  uart_transmit_char('\n');
+  line_break();
+
 }
 
 void setLeds(void){
-	if(mode != MANUAL){
-		prev_mode = mode;
-			
-		//change mode depending on the distance
-		if (afstand > afstand_max) {
-			mode = INGEROLD;
-		}
-		else if (afstand < afstand_min) {
-			mode = UITGEROLD;
-		}
-		else if(afstand > afstand_min && afstand < afstand_max) {	// afstand zit tussen de randwaarden
-			if(prev_mode == UITGEROLD){
-				mode = INROLLEN;
-			}
-			else if(prev_mode == INGEROLD){
-				mode = UITROLLEN;
-			}
-		}
+	if (manual == TRUE){
 		//change mode depending on the temperature
 
 		/*
@@ -223,7 +215,25 @@ void setLeds(void){
 			mode = INROLLEN;
 		}
 		*/
+		prev_mode = mode;
 	}
+			
+	//change mode depending on the distance
+	if (afstand > afstand_max) {
+		mode = INGEROLD;
+	}
+	else if (afstand < afstand_min) {
+		mode = UITGEROLD;
+	}
+	else if (afstand > afstand_min && afstand < afstand_max) {	// afstand zit tussen de randwaarden
+		if(prev_mode == UITGEROLD){
+			mode = INROLLEN;
+		}
+		else if (prev_mode == INGEROLD){
+			mode = UITROLLEN;
+		}
+	}
+		
 		
 	//set leds
 	int flash_speed = 0;
@@ -256,11 +266,6 @@ void setLeds(void){
 			_delay_ms(flash_speed);
 		break;
 			
-		/*
-		case MANUAL:			// Turn all LEDs off
-			setLed(RLED, OFF);
-			setLed(GLED, OFF);
-		*/
 	}
 	if (flash_speed > 0){
 		setLed(YLED, OFF);
@@ -271,17 +276,17 @@ void setLeds(void){
 int main(void)
 { 
   interr();				// Init external interrupts (INT1)
-  SCH_Init_T0();			// Init schedular (Timer0)
+  SCH_Init_T0();		// Init schedular (Timer0)
   setup();				// Init ports
-  analog_dig_conv();		// Init analog
+  analog_dig_conv();	// Init analog
   uart_init();			// Init uart (setup serial connection)
   reset_display();		// Clear display
-  uart_transmit_string("temperatuur");
+  uart_transmit_string("temperatuur\n");
   
   int tasks[5];
    
   //tasks[0] = SCH_Add_Task(init, 0, 0);				// initialize arduino + python
-  tasks[0] = SCH_Add_Task(binnenkomend, 0, 1);		// check if python send data
+  tasks[0] = SCH_Add_Task(binnenkomend, 0, 5);		// check if python send data
   tasks[1] = SCH_Add_Task(check_afstand, 0, 5);		// check the state of the roller shutter
   tasks[2] = SCH_Add_Task(temperatuur_controle, 0, 400);	// every 4s: check light intensity
   tasks[3] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
