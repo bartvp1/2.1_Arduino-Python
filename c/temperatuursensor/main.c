@@ -27,7 +27,7 @@ const int echoPin = 3;      // Echo			PD3
 const int RLED = 4;			// Red LED		PD4
 const int YLED = 5;			// Yellow LED	PD5
 const int GLED = 6;			// Green LED	PD6
-const int temperatuursensor = 0;  // temperatuur sensor PA0
+const int temperatuursensor = 1;  // temperatuur sensor PA1
 
 volatile uint16_t gv_counter;   // 16 bit counter
 volatile uint8_t gv_echo;		// a flag
@@ -37,7 +37,6 @@ uint8_t temperatuurwaarde;
 uint16_t afstand_max = 30;	// max distance roller shutter
 uint16_t afstand_min = 10;	// min distance roller shutter
 uint8_t temperatuur_drempelwaarde = 45;		// boven deze waarde moet het rolgordijn dicht
-char *stri = "---";
 
 /*
  * initialize PORTB and PORTD
@@ -158,47 +157,6 @@ void temperatuur_controle()
   previous_temp = temperatuurwaarde;
 }
 
-char name[20];
-char uart_getchar(void) {
-	while(!(UCSR0A & (1<<RXC0)));
-	return UDR0;
-}
-
-
-void binnenkomend() 
-{
-	/*
-	volatile char ar[10]= "";
-	volatile char x;
-	
-	uint8_t i = 0;
-
-	while (1){  
-		while(!(UCSR0A & (1<<RXC0)));
-		while((UCSR0A & (1<<RXC0))){
-			x = UDR0;
-			//ar[i] = x; 
-			uart_transmit_char(x);
-				
-		}
-		
-		if (x > 10){
-			break;
-		}	
-		}
-	uart_transmit_string(ar); 
-	*/
-}
-
-	
-	/*********
-	 set manual: TRUE / FALSE
-	 set UITROLLEN
-	 set afstand_max: x
-	 set afstand_min: x
-	
-	*********/
-
 
 void verzend_info()
 { 
@@ -209,19 +167,21 @@ void verzend_info()
 }
 
 void setLeds(void){
-	if (manual == TRUE){
+	prev_mode = mode;
+	/************************************************************************
+	
+	if (manual == FALSE){
 		//change mode depending on the temperature
 
-		/*
 		if (temperatuurwaarde >= temperatuur_drempelwaarde) {
 			mode = UITROLLEN;
 		}
 		else if(temperatuurwaarde < temperatuur_drempelwaarde) {
 			mode = INROLLEN;
 		}
-		*/
-		prev_mode = mode;
 	}
+	
+	************************************************************************/
 			
 	//change mode depending on the distance
 	if (afstand > afstand_max) {
@@ -230,7 +190,7 @@ void setLeds(void){
 	else if (afstand < afstand_min) {
 		mode = UITGEROLD;
 	}
-	else if (afstand > afstand_min && afstand < afstand_max) {	// afstand zit tussen de randwaarden
+	else if (afstand > afstand_min && afstand < afstand_max && manual == FALSE) {	// afstand zit tussen de randwaarden
 		if(prev_mode == UITGEROLD){
 			mode = INROLLEN;
 		}
@@ -288,22 +248,57 @@ int main(void)
   reset_display();		// Clear display
   uart_transmit_string("temperatuur\n");
   
-  int tasks[5];
+  int tasks[4];
    
-  //tasks[0] = SCH_Add_Task(init, 0, 0);				// initialize arduino + python
-  tasks[0] = SCH_Add_Task(binnenkomend, 0, 5);		// check if python send data
-  tasks[1] = SCH_Add_Task(check_afstand, 0, 5);		// check the state of the roller shutter
-  tasks[2] = SCH_Add_Task(temperatuur_controle, 0, 400);	// every 4s: check light intensity
-  tasks[3] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
-  tasks[4] = SCH_Add_Task(setLeds, 0, 1);			// set the LEDS accordingly
+  tasks[0] = SCH_Add_Task(check_afstand, 0, 5);		// check the state of the roller shutter
+  tasks[1] = SCH_Add_Task(temperatuur_controle, 0, 400);	// every 4s: check light intensity
+  tasks[2] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
+  tasks[3] = SCH_Add_Task(setLeds, 0, 1);			// set the LEDS accordingly
   
   _delay_ms(50);    // Make sure everything is initialized
   
   SCH_Start();
  
 	while(1) {
-		SCH_Dispatch_Tasks();		
+		SCH_Dispatch_Tasks();	
+			
+			
+		char a[128];
+		char b;
+		memset(a, 0, sizeof(a));
+	
+		b = UDR0;
+		if(b == '{'){
+			int i = 0;
+			while(1){
+				b = uart_getchar();
+				if(b == '}') break;
+				a[i++] = b;
+			}
+			
+			//uart_transmit_string("settings updated\n");
+			
+			char* substr = malloc(5);
+			strncpy(substr, a+0, 5);
+			
+			uart_transmit_string(a);
+			line_break();
+
+		}
+		//}
+	
+		/*********
+		 set manual: TRUE / FALSE
+		 set UITROLLEN
+		 set afstand_max: x
+		 set afstand_min: x
+	
+		*********/	
 	}
+	
+		
+		
+	
 	cli();
 	return 0;
 }
@@ -313,13 +308,14 @@ ISR(INT1_vect)
 { 
   if (gv_echo == BEGIN)
   {
-    TCNT1 = 0;
-    TCCR1B = _BV(CS10);
-    gv_echo = END;
-  } 
+	  TCNT1 = 0;
+	  TCCR1B = _BV(CS10);
+	  gv_echo = END;
+  }
   else
   {
-    TCCR1B = 0;
-    gv_counter = TCNT1;
+	  TCCR1B = 0;
+	  gv_counter = TCNT1;
   }
 }
+

@@ -2,7 +2,7 @@ import tkinter
 from tkinter import *
 from functools import partial
 import serial.tools.list_ports
-from matplotlib.pyplot import plot
+import matplotlib.pyplot as plt
 
 root = Tk()
 root.title('Centrale interface')
@@ -28,7 +28,7 @@ main_canvas.place(x=200, y=0)
 
 
 def settings_panel(port):
-    print(str(port), arduinos.get(port))
+    # print(str(port), arduinos.get(port))
     global current_port, settings_panel_open
     settings_panel_open = not settings_panel_open
     current_port = port
@@ -78,7 +78,7 @@ def settings_panel(port):
             manual_button.deselect()
 
     main_canvas.delete("all")
-    draw_graph()
+    #draw_graph()
     x1 = 15
     x2 = 200
     main_canvas.create_window(x1, 50, window=title, anchor=W)
@@ -101,7 +101,7 @@ def settings_panel(port):
     main_canvas.create_window(x1, 400, window=apply_btn, anchor=W)
 
 def draw_graph():
-    plot('xlabel', 'ylabel', data=temperatuur)
+    plt.plot('xlabel', 'ylabel', data=temperatuur)
 
 def get_ports():
     return [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
@@ -174,12 +174,11 @@ def apply_settings(obj):
         uitrol = 100
     configuration.update({current_port: {'max_extension': uitrol, 'auto_min_extension': obj[1], 'auto_max_extension': obj[2], 'threshold': obj[3], 'manual': obj[4], 'manual_extension': obj[5]}})
 
-    # TODO: send data to UNO
-    # configuration[current_port]
-    print(current_port, " -> ", str("{"+str(123456789)+"abc}").encode())
+    #print(current_port, " -> ", str(configuration[current_port]).encode())
     serOutput = serials.get(current_port)
     serOutput.flushInput()
     serOutput.write(str(configuration[current_port]).encode())
+    #serOutput.write(str("{setting1:100}").encode())
 
 def draw_status():
     status_bar.delete("all")
