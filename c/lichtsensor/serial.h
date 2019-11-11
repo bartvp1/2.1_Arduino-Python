@@ -17,12 +17,11 @@
 #ifndef SERIAL_H_INCLUDED
 #define SERIAL_H_INCLUDED
 
-void uart_init(void);
-unsigned char uart_recieve(void);
-void uart_transmit_char(unsigned char data);
-void uart_transmit_int(unsigned int data);
-void uart_transmit_string (unsigned char data[]);
-void serialSend(char* sendString);
-uint8_t* insert_data_from_pyhton(uint8_t from_sensor);
+void uart_init (void);
+char uart_getchar (void);
+void uart_putchar (char data);
+void uart_transmit_int (int data);
+void uart_transmit_string (char data[]);
+void line_break (void);
 
 #endif /* SERIAL_H_ */

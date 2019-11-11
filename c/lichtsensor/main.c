@@ -16,6 +16,12 @@
 #include "serial.h"
 
 
+typedef enum{NONE = 1, INROLLEN = 2, INGEROLD = 3, UITROLLEN = 4, UITGEROLD = 5} mode_t;
+typedef enum{OFF, FALSE = 0, ON, TRUE = 1} toggle;
+mode_t mode = NONE;
+mode_t prev_mode = NONE;
+toggle manual = FALSE;
+
 const int trigPin = 2;      // Trigger		PD2
 const int echoPin = 3;      // Echo			PD3
 const int RLED = 4;			// Red LED		PD4
@@ -25,15 +31,14 @@ const int lichtsensor = 0;  // light sensor PA0
 
 volatile uint16_t gv_counter;   // 16 bit counter
 volatile uint8_t gv_echo;		// a flag
-volatile uint16_t afstand;		// distance to roller shutter
-volatile double licht_intens;	// value of light sensitivity
 
-uint8_t afstand_max = 65;	// max distance roller shutter
-uint8_t afstand_min = 5;	// min distance roller shutter
-uint8_t licht_drempelwaarde = 60;	// hierboven moet het rolgordijn dicht
-uint8_t manual_bool = 0;	// make decisions based on sensor data or not
-typedef enum{NONE = -1, INROLLEN = 0, UITROLLEN = 1, INGEROLD = 2, UITGEROLD = 3} mode_t;
-mode_t mode = NONE;
+volatile double lichtwaarde;	// value of light intensity
+uint8_t licht_drempelwaarde = 45;	// boven deze waarde moet het rolgordijn dicht
+
+volatile uint16_t afstand;	// distance to roller shutter
+uint16_t afstand_max = 30;	// max distance roller shutter
+uint16_t afstand_min = 10;	// min distance roller shutter
+
 
 /*
  * initialize PORTB and PORTD
@@ -99,6 +104,14 @@ uint16_t ms_to_cm(uint16_t counter)
   return (microSec/58.2);
 }
 
+void setLed(int LED, toggle state){
+	if(state == ON){
+		PORTD |= (1 << LED);	// Turn LED on
+	}
+	if(state == OFF){
+		PORTD &= ~(1 << LED);	// Turn LED off
+	}
+}
 
 /*
  * calculation of light intensity
@@ -111,66 +124,18 @@ double berekenlichtwaarde(double adc_value)
 }
 
 
-/*
- * send pulse trough Trigger on HC-SR04
- * show distance on led&key screen
- */
-uint16_t berekenafstand(void)
-{
-  gv_echo = BEGIN;			// Set gv_echo to BEGIN
-  PORTD |= _BV(trigPin);    // Send pulse
-  _delay_us(12);			// Wait for pulse to complete
-  PORTD &= ~(1<<trigPin);   // Clear PORTD (trigPin & LEDs)
-  _delay_ms(30);			// Wait to make sure the signal is received
-  
-  return ms_to_cm(gv_counter);
-}
-
-
+/************************************************************************/
+/* de afstand uitrekenen                                                */
+/************************************************************************/
 void check_afstand(void){
-	afstand = berekenafstand();
-	_delay_ms(50);
-	if(afstand >= afstand_max && afstand <= afstand_min) // afstand zit tussen de randwaarden
-	{
-		if(mode == UITGEROLD){
-			mode = INROLLEN;
-		}
-		else if(mode == INGEROLD){
-			mode = UITROLLEN;
-		}
-	}
-		
-	if (afstand >= afstand_max) {
-		mode = INGEROLD;
-	}
-	else if (afstand <= afstand_min) {
-		mode = UITGEROLD;
-	}
-	
-	switch(mode){
-		case UITGEROLD:
-			PORTD |= (1 << RLED);	// Set red LED to 1
-			PORTD &= ~(1 << YLED);	// Set yellow LED to 0
-			break;
-
-		case INGEROLD:
-			PORTD |= (1 << GLED);	// Set green LED to 1
-			PORTD &= ~(1 << YLED);	// Set yellow LED to 0
-			break;
-		
-		case UITROLLEN:
-			PORTD |= (1 << RLED);	// Set red LED to 1
-			PORTD ^= (1 << YLED);	// Set yellow LED to 1
-			break;
-		
-		case INROLLEN:
-			PORTD |= (1 << GLED);	// Set green LED to 1
-			PORTD ^= (1 << YLED);	// Set yellow LED to 1
-			break;
-	}
+	gv_echo = BEGIN;			// Set gv_echo to BEGIN
+	PORTD |= _BV(trigPin);    // Send pulse
+	_delay_us(12);			// Wait for pulse to complete
+	PORTD &= ~(1<<trigPin);   // Clear PORTD (trigPin & LEDs)
+	_delay_ms(30);			// Wait to make sure the signal is received
+	afstand =  ms_to_cm(gv_counter);
 	show_afstand(afstand);
 }
-
 
 
 /*
@@ -178,7 +143,7 @@ void check_afstand(void){
  */
 void licht_controle()
 {
-  double temp = licht_intens;
+  double temp = lichtwaarde;
   double lichtwaarde = berekenlichtwaarde(adc_val(lichtsensor));
   
   if (lichtwaarde == -1)
@@ -189,79 +154,156 @@ void licht_controle()
     temp = temp + lichtwaarde;
     lichtwaarde = temp / 2;
   }
-  licht_intens = lichtwaarde;
-  
-  
-  if (lichtwaarde >= licht_drempelwaarde)
-  {
-    mode = UITROLLEN;
-  }
-  else if (lichtwaarde <= licht_drempelwaarde)
-  {
-    mode = INROLLEN;
-  }
 }
 
-void binnenkomend() 
-{
-	char string[20] = "";
-	uint8_t i = 0;
-	while(uart_recieve()){
-		string[i] = uart_recieve();
-		i++;
-		if(i==19){
-			break;
+
+void setLeds(void){
+	prev_mode = mode;
+	/************************************************************************
+	
+	if (manual == FALSE){
+		//change mode depending on the temperature
+
+		if (lichtwaarde >= licht_drempelwaarde)
+		{
+			mode = UITROLLEN;
+		}
+		else if (lichtwaarde <= licht_drempelwaarde)
+		{
+			mode = INROLLEN;
 		}
 	}
-	if(strlen(string)>0){
-		uart_transmit_string(string);
+	
+	************************************************************************/
+			
+	//change mode depending on the distance
+	if (afstand > afstand_max) {
+		mode = INGEROLD;
 	}
-	string[20] = "";
+	else if (afstand < afstand_min) {
+		mode = UITGEROLD;
+	}
+	else if (afstand > afstand_min && afstand < afstand_max && manual == FALSE) {	// afstand zit tussen de randwaarden
+		if(prev_mode == UITGEROLD){
+			mode = INROLLEN;
+		}
+		else if (prev_mode == INGEROLD){
+			mode = UITROLLEN;
+		}
+	}
+		
+		
+	//set leds
+	int flash_speed = 0;
+	switch(mode){
+		case UITGEROLD:			// Turn red on
+			setLed(RLED, ON);	
+			setLed(GLED, OFF);
+			setLed(YLED, OFF);
+		break;
+			
+		case INGEROLD:			// Turn yellow on
+			setLed(RLED, OFF);
+			setLed(GLED, ON);
+			setLed(YLED, OFF);
+		break;
+			
+		case UITROLLEN:			// Turn red&yellow on
+			setLed(RLED, ON);
+			setLed(GLED, OFF);
+			_delay_ms(flash_speed);
+			setLed(YLED, ON);
+			_delay_ms(flash_speed);
+		break;
+			
+		case INROLLEN:			// Turn green&yellow on
+			setLed(RLED, OFF);
+			setLed(GLED, ON);
+			_delay_ms(flash_speed);
+			setLed(YLED, ON);
+			_delay_ms(flash_speed);
+		break;
+			
+	}
+	if (flash_speed > 0){
+		setLed(YLED, OFF);
+	}
 }
+
 
 void verzend_info()
 { 
-  uart_transmit_char('l');
-  uart_transmit_char('=');
-  uart_transmit_int(licht_intens);
-  uart_transmit_char('\n');
+  uart_putchar('l');
+  uart_putchar('=');
+  uart_transmit_int(lichtwaarde);
+  uart_putchar('\n');
 }
 
 
 int main(void)
 { 
-  
   interr();				// Init external interrupts (INT1)
   SCH_Init_T0();		// Init schedular (Timer0)
   setup();				// Init ports
-  analog_dig_conv();    // Init analog
+  analog_dig_conv();	// Init analog
   uart_init();			// Init uart (setup serial connection)
-  
-  uart_transmit_string("licht");
+  reset_display();		// Clear display
+  uart_transmit_string("licht\n");
   
   int tasks[4];
     
-  tasks[0] = SCH_Add_Task(binnenkomend, 0, 1);		// every 10ms: check if python send data
-  tasks[1] = SCH_Add_Task(check_afstand, 0, 1);		// check the state of the roller shutter
-  tasks[2] = SCH_Add_Task(licht_controle, 0, 300);	// every 3s: check light intensity
-  tasks[3] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
+  tasks[0] = SCH_Add_Task(check_afstand, 0, 5);		// check the state of the roller shutter
+  tasks[1] = SCH_Add_Task(licht_controle, 0, 300);	// every 4s: check light intensity
+  tasks[2] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
     
-  sei();            // Set interrupt flag
-  _delay_ms(50);    // Make sure everything is initialized
-  reset_display();  // Clear display
+ _delay_ms(50);    // Make sure everything is initialized
   
+  SCH_Start();
+ 
 	while(1) {
-		SCH_Dispatch_Tasks();
-		//PORTD &= ~(1 << GLED);     // Clear green LED
-		//PORTD &= ~(1 << RLED);     // Clear red LED
-
-		//_delay_ms(500);
+		SCH_Dispatch_Tasks();	
+			
+		setLeds();
+			
+		char a[128];
+		char b;
+		memset(a, 0, sizeof(a));
+	
+		b = UDR0;
+		if(b == '{'){
+			int i = 0;
+			while(1){
+				b = uart_getchar();
+				if(b == '}') break;
+				a[i++] = b;
+			}
+			
+			//uart_transmit_string("settings updated\n");
+			
+			char* substr = malloc(5);
+			strncpy(substr, a+0, 5);
+			
+			uart_transmit_string(a);
+			line_break();
+			
+			//afstand_min = ;
+			//afstand_max = ; http://www.cplusplus.com/reference/cstring/strstr/
+			//mode = ;
+		}
+		//}
+	
+		/*********
+		 set manual: TRUE / FALSE
+		 set UITROLLEN
+		 set afstand_max: x
+		 set afstand_min: x
+	
+		*********/	
 	}
-  
-	/*for (int t = 0; t < tasks; t++) {
-		SCH_Delete_Task(tasks[t]);
-	}*/
-
+	
+		
+		
+	
 	cli();
 	return 0;
 }
@@ -271,13 +313,14 @@ ISR(INT1_vect)
 { 
   if (gv_echo == BEGIN)
   {
-    TCNT1 = 0;
-    TCCR1B = _BV(CS10);
-    gv_echo = END;
-  } 
+	  TCNT1 = 0;
+	  TCCR1B = _BV(CS10);
+	  gv_echo = END;
+  }
   else
   {
-    TCCR1B = 0;
-    gv_counter = TCNT1;
+	  TCCR1B = 0;
+	  gv_counter = TCNT1;
   }
 }
+

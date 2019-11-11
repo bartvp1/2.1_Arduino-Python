@@ -1,5 +1,5 @@
 /*
- * temperatuursensor
+ * temperatuursensor.c
  *
  * Created: 31-Oct-19 12:21:19
  * Author: Karen Arkojan & Shafik Hoshan
@@ -27,16 +27,18 @@ const int echoPin = 3;      // Echo			PD3
 const int RLED = 4;			// Red LED		PD4
 const int YLED = 5;			// Yellow LED	PD5
 const int GLED = 6;			// Green LED	PD6
-const int temperatuursensor = 1;  // temperatuur sensor PA1
+const int temperatuursensor = 0;  // temperatuur sensor PA0
 
 volatile uint16_t gv_counter;   // 16 bit counter
 volatile uint8_t gv_echo;		// a flag
-volatile uint16_t afstand;		// distance to roller shutter
 
-uint8_t temperatuurwaarde;
+volatile uint8_t temperatuurwaarde;
+uint8_t temperatuur_drempelwaarde = 45;		// boven deze waarde moet het rolgordijn dicht
+
+volatile uint16_t afstand;	// distance to roller shutter
 uint16_t afstand_max = 30;	// max distance roller shutter
 uint16_t afstand_min = 10;	// min distance roller shutter
-uint8_t temperatuur_drempelwaarde = 45;		// boven deze waarde moet het rolgordijn dicht
+
 
 /*
  * initialize PORTB and PORTD
@@ -154,7 +156,6 @@ void temperatuur_controle()
     int sum = previous_temp + temperatuurwaarde;
     temperatuurwaarde = sum / 2;
   }
-  previous_temp = temperatuurwaarde;
 }
 
 
@@ -248,12 +249,11 @@ int main(void)
   reset_display();		// Clear display
   uart_transmit_string("temperatuur\n");
   
-  int tasks[4];
+  int tasks[3];
    
   tasks[0] = SCH_Add_Task(check_afstand, 0, 5);		// check the state of the roller shutter
   tasks[1] = SCH_Add_Task(temperatuur_controle, 0, 400);	// every 4s: check light intensity
   tasks[2] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
-  tasks[3] = SCH_Add_Task(setLeds, 0, 1);			// set the LEDS accordingly
   
   _delay_ms(50);    // Make sure everything is initialized
   
@@ -261,7 +261,8 @@ int main(void)
  
 	while(1) {
 		SCH_Dispatch_Tasks();	
-			
+		
+		setLeds();
 			
 		char a[128];
 		char b;
@@ -283,7 +284,10 @@ int main(void)
 			
 			uart_transmit_string(a);
 			line_break();
-
+			
+			//afstand_min = ;
+			//afstand_max = ; http://www.cplusplus.com/reference/cstring/strstr/
+			//mode = ;
 		}
 		//}
 	
