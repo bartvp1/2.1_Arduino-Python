@@ -2,7 +2,7 @@ import tkinter
 from tkinter import *
 from functools import partial
 import serial.tools.list_ports
-from matplotlib.pyplot import plot
+from matplotlib import pyplot
 
 root = Tk()
 root.title('Centrale interface')
@@ -15,6 +15,7 @@ current_port = ""
 arduinos = {}
 serials = {}
 reading = False
+show_graph = False
 
 left_canvas = Canvas(root, width=200, height=430, bg='#313335', highlightthickness=0)
 main_canvas = Canvas(root, width=600, height=430, bg=main_color, highlightthickness=0)
@@ -29,8 +30,9 @@ main_canvas.place(x=200, y=0)
 
 def settings_panel(port):
     print(str(port), arduinos.get(port))
-    global current_port, settings_panel_open
+    global current_port, settings_panel_open, show_graph
     settings_panel_open = not settings_panel_open
+    show_graph = False
     current_port = port
     sensor = arduinos.get(current_port)
     title = Label(text=sensor+" configuration", font='Courier 12 bold', bg=main_color, fg='#ffffff', anchor=W)
@@ -78,7 +80,8 @@ def settings_panel(port):
             manual_button.deselect()
 
     main_canvas.delete("all")
-    draw_graph()
+    main_canvas.after(2000, draw_graph)
+    show_graph = True
     x1 = 15
     x2 = 200
     main_canvas.create_window(x1, 50, window=title, anchor=W)
@@ -101,7 +104,9 @@ def settings_panel(port):
     main_canvas.create_window(x1, 400, window=apply_btn, anchor=W)
 
 def draw_graph():
-    plot('xlabel', 'ylabel', data=temperatuur)
+    if show_graph:
+        pyplot.plot(temperatuur[-5:])
+        pyplot.show()
 
 def get_ports():
     return [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]

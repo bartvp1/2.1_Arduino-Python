@@ -38,6 +38,7 @@ uint16_t afstand_max = 30;	// max distance roller shutter
 uint16_t afstand_min = 10;	// min distance roller shutter
 uint8_t temperatuur_drempelwaarde = 45;		// boven deze waarde moet het rolgordijn dicht
 char *stri = "---";
+char receivedChar;
 
 /*
  * initialize PORTB and PORTD
@@ -167,6 +168,7 @@ char uart_getchar(void) {
 
 void binnenkomend() 
 {
+	
 	/*
 	volatile char ar[10]= "";
 	volatile char x;
@@ -174,6 +176,7 @@ void binnenkomend()
 	uint8_t i = 0;
 
 	while (1){  
+		UCSR0B |= (1 <<  RXEN0) | (1 << TXEN0);
 		while(!(UCSR0A & (1<<RXC0)));
 		while((UCSR0A & (1<<RXC0))){
 			x = UDR0;
@@ -188,6 +191,12 @@ void binnenkomend()
 		}
 	uart_transmit_string(ar); 
 	*/
+	
+		//while(!(UCSR0A & (1<<RXC0))) 
+		//receivedChar = UDR0;
+		//while(!(UCSR0A & (1<<UDRE0))) UDR0 = receivedChar;
+	
+	
 }
 
 	
@@ -209,17 +218,17 @@ void verzend_info()
 }
 
 void setLeds(void){
-	if (manual == TRUE){
+	if (manual == FALSE){
 		//change mode depending on the temperature
 
-		/*
+		
 		if (temperatuurwaarde >= temperatuur_drempelwaarde) {
 			mode = UITROLLEN;
 		}
 		else if(temperatuurwaarde < temperatuur_drempelwaarde) {
 			mode = INROLLEN;
 		}
-		*/
+		
 		prev_mode = mode;
 	}
 			
@@ -322,4 +331,5 @@ ISR(INT1_vect)
     TCCR1B = 0;
     gv_counter = TCNT1;
   }
+  //receivedChar = UDR0;
 }
