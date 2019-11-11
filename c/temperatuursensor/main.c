@@ -11,14 +11,16 @@
 #include <util/delay.h>
 #include <stdbool.h>
 #include <string.h>
+//#include <unistd.h>
 #include "display.h"
 #include "schedular.h"
 #include "serial.h"
 
-typedef enum{NONE = 1, INROLLEN = 2, INGEROLD = 3, UITROLLEN = 4, UITGEROLD = 5, MANUAL = 6} mode_t;
-typedef enum{OFF = 0, ON = 1} led_state;
-mode_t mode = MANUAL;
+typedef enum{NONE = 1, INROLLEN = 2, INGEROLD = 3, UITROLLEN = 4, UITGEROLD = 5} mode_t;
+typedef enum{OFF, FALSE = 0, ON, TRUE = 1} toggle;
+mode_t mode = NONE;
 mode_t prev_mode = NONE;
+toggle manual = FALSE;
 
 const int trigPin = 2;      // Trigger		PD2
 const int echoPin = 3;      // Echo			PD3
@@ -35,7 +37,7 @@ uint8_t temperatuurwaarde;
 uint16_t afstand_max = 30;	// max distance roller shutter
 uint16_t afstand_min = 10;	// min distance roller shutter
 uint8_t temperatuur_drempelwaarde = 45;		// boven deze waarde moet het rolgordijn dicht
-uint8_t manual_distance = 20;	// manual distance (if automatic control is disabled)
+char *stri = "---";
 
 /*
  * initialize PORTB and PORTD
@@ -102,20 +104,20 @@ uint16_t ms_to_cm(uint16_t counter)
 }
 
 
-void setLed(int LED, led_state state){
+void setLed(int LED, toggle state){
 	if(state == ON){
-		PORTD |= (1 << LED);	// Set LED to 1
+		PORTD |= (1 << LED);	// Turn LED on
 	}
 	if(state == OFF){
-		PORTD &= ~(1 << LED);	// Set LED to 0
+		PORTD &= ~(1 << LED);	// Turn LED off
 	}
 }
 
 
-/*
- * calculation of temperature
- * parameter: adc_value is raw data from the TP36 sensor
- */
+/************************************************************************/
+/* calculation of temperature                                           */
+/* parameter: adc_value is raw data from the TP36 sensor	            */
+/************************************************************************/
 double bereken_temperature(double adc_value)
 {
 	adc_value = adc_value * (5.0/1023);		// calculate value to volt
@@ -156,42 +158,70 @@ void temperatuur_controle()
   previous_temp = temperatuurwaarde;
 }
 
+char name[20];
+char uart_getchar(void) {
+	while(!(UCSR0A & (1<<RXC0)));
+	return UDR0;
+}
+
+
 void binnenkomend() 
 {
-	
-	
-	
-	//~TODO~
 	/*
-	char string[20] = "";
+	volatile char ar[10]= "";
+	volatile char x;
+	
 	uint8_t i = 0;
-	while(uart_recieve()){
-		string[i] = uart_recieve();
-		i++;
-		if(i==19){
-			break;
+
+	while (1){  
+		while(!(UCSR0A & (1<<RXC0)));
+		while((UCSR0A & (1<<RXC0))){
+			x = UDR0;
+			//ar[i] = x; 
+			uart_transmit_char(x);
+				
 		}
-	}
-	if(strlen(string)>0){
-		uart_transmit_string(string);
-	}
-	string[20] = "";
+		
+		if (x > 10){
+			break;
+		}	
+		}
+	uart_transmit_string(ar); 
 	*/
 }
 
+	
+	/*********
+	 set manual: TRUE / FALSE
+	 set UITROLLEN
+	 set afstand_max: x
+	 set afstand_min: x
+	
+	*********/
+
+
 void verzend_info()
 { 
-  uart_transmit_char('t');
-  uart_transmit_char('=');
+  uart_transmit_string("t=");
   uart_transmit_int(temperatuurwaarde);
-  uart_transmit_char('\n');
+  line_break();
+
 }
 
 void setLeds(void){
-	if(mode == MANUAL){
-		afstand_max = manual_distance;
+	if (manual == TRUE){
+		//change mode depending on the temperature
+
+		/*
+		if (temperatuurwaarde >= temperatuur_drempelwaarde) {
+			mode = UITROLLEN;
+		}
+		else if(temperatuurwaarde < temperatuur_drempelwaarde) {
+			mode = INROLLEN;
+		}
+		*/
+		prev_mode = mode;
 	}
-	prev_mode = mode;
 			
 	//change mode depending on the distance
 	if (afstand > afstand_max) {
@@ -200,24 +230,15 @@ void setLeds(void){
 	else if (afstand < afstand_min) {
 		mode = UITGEROLD;
 	}
-	else if(afstand > afstand_min && afstand < afstand_max) {	// afstand zit tussen de randwaarden
+	else if (afstand > afstand_min && afstand < afstand_max) {	// afstand zit tussen de randwaarden
 		if(prev_mode == UITGEROLD){
 			mode = INROLLEN;
 		}
-		else if(prev_mode == INGEROLD){
+		else if (prev_mode == INGEROLD){
 			mode = UITROLLEN;
 		}
 	}
-	//change mode depending on the temperature
-
-	/*
-	if (temperatuurwaarde >= temperatuur_drempelwaarde) {
-		mode = UITROLLEN;
-	}
-	else if(temperatuurwaarde < temperatuur_drempelwaarde) {
-		mode = INROLLEN;
-	}
-	*/
+		
 		
 	//set leds
 	int flash_speed = 0;
@@ -250,35 +271,34 @@ void setLeds(void){
 			_delay_ms(flash_speed);
 		break;
 			
-		//case MANUAL:			// Turn all LEDs off
-		//	setLed(RLED, OFF);
-		//	setLed(GLED, OFF);
 	}
 	if (flash_speed > 0){
 		setLed(YLED, OFF);
 	}
 }
 
+
 int main(void)
 { 
   interr();				// Init external interrupts (INT1)
   SCH_Init_T0();		// Init schedular (Timer0)
   setup();				// Init ports
-  analog_dig_conv();    // Init analog
+  analog_dig_conv();	// Init analog
   uart_init();			// Init uart (setup serial connection)
   reset_display();		// Clear display
-  
-  uart_transmit_string("temperatuur");
+  uart_transmit_string("temperatuur\n");
   
   int tasks[5];
    
-  tasks[0] = SCH_Add_Task(binnenkomend, 0, 1);		// check if python send data
-  tasks[1] = SCH_Add_Task(check_afstand, 0, 1);		// check the state of the roller shutter
+  //tasks[0] = SCH_Add_Task(init, 0, 0);				// initialize arduino + python
+  tasks[0] = SCH_Add_Task(binnenkomend, 0, 5);		// check if python send data
+  tasks[1] = SCH_Add_Task(check_afstand, 0, 5);		// check the state of the roller shutter
   tasks[2] = SCH_Add_Task(temperatuur_controle, 0, 400);	// every 4s: check light intensity
   tasks[3] = SCH_Add_Task(verzend_info, 600, 600);	// every 6th sec: send sensor data to python
   tasks[4] = SCH_Add_Task(setLeds, 0, 1);			// set the LEDS accordingly
   
   _delay_ms(50);    // Make sure everything is initialized
+  
   SCH_Start();
  
 	while(1) {
