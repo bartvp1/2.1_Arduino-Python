@@ -25,6 +25,7 @@ unsigned char uart_receive (void)
 	return UDR0;					// return 8-bit data
 }
 
+
 // function to send data
 void uart_transmit_char (char data) 
 {

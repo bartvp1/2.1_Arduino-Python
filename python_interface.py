@@ -1,6 +1,8 @@
+import tkinter
 from tkinter import *
 from functools import partial
 import serial.tools.list_ports
+from matplotlib.pyplot import plot
 
 root = Tk()
 root.title('Centrale interface')
@@ -76,6 +78,7 @@ def settings_panel(port):
             manual_button.deselect()
 
     main_canvas.delete("all")
+    draw_graph()
     x1 = 15
     x2 = 200
     main_canvas.create_window(x1, 50, window=title, anchor=W)
@@ -98,23 +101,7 @@ def settings_panel(port):
     main_canvas.create_window(x1, 400, window=apply_btn, anchor=W)
 
 def draw_graph():
-    posx, posy, width, height = 400, 120, 180, 80
-    main_canvas.create_line(posx, posy+height, posx+width, posy+height, width=1)        # x-axis
-    main_canvas.create_line(posx, posy+height, posx, posy, width=1)                     # y-axis
-    main_canvas.create_text(posx-15, posy-15, text="°C", font='Courier 8')              # y-unit
-    main_canvas.create_text(posx+30, posy+height+25, text="Time", font='Courier 8')     # x-unit
-
-    # x-axis
-    for i in range(0, 4):
-        x = 400 + (i * 60)
-        main_canvas.create_line(x, 200, x, 120, width=1, dash=(2, 5))
-        main_canvas.create_text(x, 210, text='%d' % (60 * i), font='Courier 6', anchor=N)
-
-    # y-axis
-    for i in range(0, 5):
-        y = 200 - (i * 20)
-        main_canvas.create_line(400, y, 580, y, width=1, dash=(2, 5))
-        main_canvas.create_text(395, y, text='%d' % (20 * i), font='Courier 6', anchor=E)
+    plot('xlabel', 'ylabel', data=temperatuur)
 
 def get_ports():
     return [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
@@ -143,18 +130,21 @@ temperatuur = []
 def read_serial():
     for port in arduinos:
         ser = serials.get(port)
-        line = str(ser.readline().decode())
-        while int(line.find("\n")) != -1:
-            print("serial_receive: "+line)
-            if line.find("l=") is not -1:
-                waarde = line[line.find("l=")+2:-1]
-                print("l:"+waarde)
-                licht.append(int(waarde))
-            if line.find("t=") is not -1:
-                waarde = line[line.find("t=")+2:-1]
-                temperatuur.append(int(waarde))
-            #print("licht: "+str(licht)+"\ntemperatuur: "+str(temperatuur)+"\n")
-            break
+        try:
+            line = str(ser.readline().decode())
+            while int(line.find("\n")) != -1:
+                print("serial_receive: "+line)
+                if line.find("l=") is not -1:
+                    waarde = line[line.find("l=")+2:-1]
+                    print("l:"+waarde)
+                    licht.append(int(waarde))
+                if line.find("t=") is not -1:
+                    waarde = line[line.find("t=")+2:-1]
+                    temperatuur.append(int(waarde))
+                #print("licht: "+str(licht)+"\ntemperatuur: "+str(temperatuur)+"\n")
+                break
+        except:
+            print("error decoding serial data")
     root.after(6000, read_serial)
 
 def draw_navigation():
@@ -163,15 +153,15 @@ def draw_navigation():
     offset = 60
     if len(get_ports()) == 0:
         main_canvas.delete("all")
-        title = Label(text='Please connect a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
+        title = tkinter.Label(text='Please connect a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
         main_canvas.create_window(150, 50, window=title)
     else:
         for i in arduinos.keys():
-            left_canvas.create_window(90, offset, window=Button(text=arduinos.get(i), fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=partial(settings_panel, i)))
+            left_canvas.create_window(90, offset, window=tkinter.Button(text=arduinos.get(i), fg='white', bg='black', activebackground='black', activeforeground='white', height=2, width=30, command=partial(settings_panel, i)))
             offset += 45
         if not settings_panel_open:
             main_canvas.delete("all")
-            title = Label(text='Please select a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
+            title = tkinter.Label(text='Please select a controller', font='Courier 12 bold', bg=main_color, fg='#ffffff')
             main_canvas.create_window(150, 50, window=title)
     if not reading:
         reading = True
@@ -185,7 +175,8 @@ def apply_settings(obj):
     configuration.update({current_port: {'max_extension': uitrol, 'auto_min_extension': obj[1], 'auto_max_extension': obj[2], 'threshold': obj[3], 'manual': obj[4], 'manual_extension': obj[5]}})
 
     # TODO: send data to UNO
-    print(current_port," -> ", str(configuration[current_port]).encode())
+    # configuration[current_port]
+    print(current_port, " -> ", str("{"+str(123456789)+"abc}").encode())
     serOutput = serials.get(current_port)
     serOutput.flushInput()
     serOutput.write(str(configuration[current_port]).encode())

@@ -11,6 +11,7 @@
 #include <util/delay.h>
 #include <stdbool.h>
 #include <string.h>
+//#include <unistd.h>
 #include "display.h"
 #include "schedular.h"
 #include "serial.h"
@@ -36,6 +37,7 @@ uint8_t temperatuurwaarde;
 uint16_t afstand_max = 30;	// max distance roller shutter
 uint16_t afstand_min = 10;	// min distance roller shutter
 uint8_t temperatuur_drempelwaarde = 45;		// boven deze waarde moet het rolgordijn dicht
+char *stri = "---";
 
 /*
  * initialize PORTB and PORTD
@@ -156,35 +158,38 @@ void temperatuur_controle()
   previous_temp = temperatuurwaarde;
 }
 
+char name[20];
+char uart_getchar(void) {
+	while(!(UCSR0A & (1<<RXC0)));
+	return UDR0;
+}
+
 
 void binnenkomend() 
 {
-	char ascii_val = '0';
-	char *stri = "---";
+	/*
+	volatile char ar[10]= "";
+	volatile char x;
 	
-		ascii_val = uart_receive();
-		int count=0;
-		if(ascii_val=='{'){
-			while(1){
-				ascii_val = uart_receive();
-				if (ascii_val == '}'){
-					break;
-				}
-				//stri[count] = ascii_val;
-				printf(stri[count], "%s", ascii_val);
-				count+=1;
-			}
-			//stri[count+1] = '\0';
-			
-			//if (strlen(stri)>0){
-			uart_transmit_string(stri);
-			line_break();
-			//memset(stri, 0, sizeof(stri));
-			//stri[0] = '\0';
+	uint8_t i = 0;
 
-			//}
+	while (1){  
+		while(!(UCSR0A & (1<<RXC0)));
+		while((UCSR0A & (1<<RXC0))){
+			x = UDR0;
+			//ar[i] = x; 
+			uart_transmit_char(x);
+				
 		}
-	
+		
+		if (x > 10){
+			break;
+		}	
+		}
+	uart_transmit_string(ar); 
+	*/
+}
+
 	
 	/*********
 	 set manual: TRUE / FALSE
@@ -193,7 +198,7 @@ void binnenkomend()
 	 set afstand_min: x
 	
 	*********/
-}
+
 
 void verzend_info()
 { 
