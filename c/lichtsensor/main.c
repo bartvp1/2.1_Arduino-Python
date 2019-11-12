@@ -36,7 +36,7 @@ volatile double lichtwaarde;	// value of light intensity
 uint8_t licht_drempelwaarde = 45;	// boven deze waarde moet het rolgordijn dicht
 
 volatile uint16_t afstand;	// distance to roller shutter
-uint16_t afstand_max = 30;	// max distance roller shutter
+uint8_t afstand_max = 30;	// max distance roller shutter
 uint16_t afstand_min = 10;	// min distance roller shutter
 
 
@@ -119,7 +119,7 @@ void setLed(int LED, toggle state){
  */
 double berekenlichtwaarde(double adc_value)
 {
-  adc_value = adc_value / 1023;	// convert to volt
+  adc_value /= 1023;	// convert to volt
   return adc_value*100;			// to %
 }
 
@@ -144,22 +144,24 @@ void check_afstand(void){
 void licht_controle()
 {
   double temp = lichtwaarde;
-  double lichtwaarde = berekenlichtwaarde(adc_val(lichtsensor));
+  double raw_value = adc_val(lichtsensor);
+  lichtwaarde = berekenlichtwaarde(raw_value);
   
   if (lichtwaarde == -1)
   {
     return;
   }
   if (temp > 0) {
-    temp = temp + lichtwaarde;
-    lichtwaarde = temp / 2;
+    int sum = temp + lichtwaarde;
+    lichtwaarde = sum / 2;
   }
+  temp = lichtwaarde;
+  
 }
 
 
 void setLeds(void){
 	prev_mode = mode;
-	/************************************************************************
 	
 	if (manual == FALSE){
 		//change mode depending on the temperature
@@ -174,7 +176,6 @@ void setLeds(void){
 		}
 	}
 	
-	************************************************************************/
 			
 	//change mode depending on the distance
 	if (afstand > afstand_max) {
@@ -192,41 +193,47 @@ void setLeds(void){
 		}
 	}
 		
-		
-	//set leds
-	int flash_speed = 0;
-	switch(mode){
-		case UITGEROLD:			// Turn red on
-			setLed(RLED, ON);	
-			setLed(GLED, OFF);
+	if(manual == FALSE){
+		//set leds
+		int flash_speed = 0;
+		switch(mode){
+			case UITGEROLD:			// Turn red on
+				setLed(RLED, ON);	
+				setLed(GLED, OFF);
+				setLed(YLED, OFF);
+			break;
+			
+			case INGEROLD:			// Turn yellow on
+				setLed(RLED, OFF);
+				setLed(GLED, ON);
+				setLed(YLED, OFF);
+			break;
+			
+			case UITROLLEN:			// Turn red&yellow on
+				setLed(RLED, ON);
+				setLed(GLED, OFF);
+				_delay_ms(flash_speed);
+				setLed(YLED, ON);
+				_delay_ms(flash_speed);
+			break;
+			
+			case INROLLEN:			// Turn green&yellow on
+				setLed(RLED, OFF);
+				setLed(GLED, ON);
+				_delay_ms(flash_speed);
+				setLed(YLED, ON);
+				_delay_ms(flash_speed);
+			break;
+			
+		}
+		if (flash_speed > 0){
 			setLed(YLED, OFF);
-		break;
-			
-		case INGEROLD:			// Turn yellow on
-			setLed(RLED, OFF);
-			setLed(GLED, ON);
-			setLed(YLED, OFF);
-		break;
-			
-		case UITROLLEN:			// Turn red&yellow on
-			setLed(RLED, ON);
-			setLed(GLED, OFF);
-			_delay_ms(flash_speed);
-			setLed(YLED, ON);
-			_delay_ms(flash_speed);
-		break;
-			
-		case INROLLEN:			// Turn green&yellow on
-			setLed(RLED, OFF);
-			setLed(GLED, ON);
-			_delay_ms(flash_speed);
-			setLed(YLED, ON);
-			_delay_ms(flash_speed);
-		break;
-			
+		}
 	}
-	if (flash_speed > 0){
-		setLed(YLED, OFF);
+	else {
+		setLed(RLED, ON);
+		setLed(GLED, ON);
+		setLed(YLED, ON);
 	}
 }
 
@@ -239,6 +246,39 @@ void verzend_info()
   uart_putchar('\n');
 }
 
+void process_string(char * str_to_be_found, char * array){
+	char * str_found;
+	int length = strlen(str_to_be_found);
+	str_found = strstr (array,str_to_be_found);
+	
+	if(str_to_be_found == "manual"){
+		if(str_found[length+3] == 'T'){
+			manual = TRUE;
+		}
+		else if(str_found[length+3] == 'F'){
+			manual = FALSE;
+		}
+	}
+	memset(str_found, 0, sizeof(str_found));
+	
+	length = strlen(str_to_be_found);
+	str_found = strstr (array,str_to_be_found);
+	
+	if(str_to_be_found == "max_extension"){
+		int i = 0;
+		int f = (int)str_found[length+3];
+		int s = (int)str_found[length+4];
+		if(f < 10 && s < 10){
+			i = f*10;
+			i += s;
+			afstand_max = i;
+		}
+		
+		//uart_transmit_int(i);
+		//line_break();
+	}
+	memset(str_found, 0, sizeof(str_found));
+}
 
 int main(void)
 { 
@@ -278,27 +318,14 @@ int main(void)
 				a[i++] = b;
 			}
 			
-			//uart_transmit_string("settings updated\n");
+			uart_transmit_string("settings updated\n");
 			
-			char* substr = malloc(5);
-			strncpy(substr, a+0, 5);
 			
-			uart_transmit_string(a);
-			line_break();
+			process_string("manual",a);
+			process_string("max_extension",a);
 			
-			//afstand_min = ;
-			//afstand_max = ; http://www.cplusplus.com/reference/cstring/strstr/
-			//mode = ;
+			
 		}
-		//}
-	
-		/*********
-		 set manual: TRUE / FALSE
-		 set UITROLLEN
-		 set afstand_max: x
-		 set afstand_min: x
-	
-		*********/	
 	}
 	
 		

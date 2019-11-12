@@ -114,6 +114,39 @@ void setLed(int LED, toggle state){
 	}
 }
 
+void process_string(char * str_to_be_found, char * array){
+	char * str_found;
+	int length = strlen(str_to_be_found);
+	str_found = strstr (array,str_to_be_found);
+	
+	if(str_to_be_found == "manual"){
+		if(str_found[length+3] == 'T'){
+			manual = TRUE;
+		}
+		else if(str_found[length+3] == 'F'){
+			manual = FALSE;
+		}
+	}
+	memset(str_found, 0, sizeof(str_found));
+	
+	length = strlen(str_to_be_found);
+	str_found = strstr (array,str_to_be_found);
+	
+	if(str_to_be_found == "max_extension"){
+		int i = 0;
+		int f = (int)str_found[length+3];
+		int s = (int)str_found[length+4];
+		if(f < 10 && s < 10){
+			i = f*10;
+			i += s;
+			afstand_max = i;
+		}
+		
+		//uart_transmit_int(i);
+		//line_break();
+	}
+	memset(str_found, 0, sizeof(str_found));
+}
 
 /************************************************************************/
 /* calculation of temperature                                           */
@@ -169,7 +202,6 @@ void verzend_info()
 
 void setLeds(void){
 	prev_mode = mode;
-	/************************************************************************
 	
 	if (manual == FALSE){
 		//change mode depending on the temperature
@@ -182,7 +214,6 @@ void setLeds(void){
 		}
 	}
 	
-	************************************************************************/
 			
 	//change mode depending on the distance
 	if (afstand > afstand_max) {
@@ -277,27 +308,14 @@ int main(void)
 				a[i++] = b;
 			}
 			
-			//uart_transmit_string("settings updated\n");
+			uart_transmit_string("settings updated\n");
 			
-			char* substr = malloc(5);
-			strncpy(substr, a+0, 5);
 			
-			uart_transmit_string(a);
-			line_break();
+			process_string("manual",a);
+			process_string("max_extension",a);
 			
-			//afstand_min = ;
-			//afstand_max = ; http://www.cplusplus.com/reference/cstring/strstr/
-			//mode = ;
+			
 		}
-		//}
-	
-		/*********
-		 set manual: TRUE / FALSE
-		 set UITROLLEN
-		 set afstand_max: x
-		 set afstand_min: x
-	
-		*********/	
 	}
 	
 		

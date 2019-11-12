@@ -15,6 +15,8 @@ current_port = ""
 arduinos = {}
 serials = {}
 reading = False
+licht = []
+temperatuur = []
 
 left_canvas = Canvas(root, width=200, height=430, bg='#313335', highlightthickness=0)
 main_canvas = Canvas(root, width=600, height=430, bg=main_color, highlightthickness=0)
@@ -78,7 +80,7 @@ def settings_panel(port):
             manual_button.deselect()
 
     main_canvas.delete("all")
-    #draw_graph()
+
     x1 = 15
     x2 = 200
     main_canvas.create_window(x1, 50, window=title, anchor=W)
@@ -99,9 +101,24 @@ def settings_panel(port):
     main_canvas.create_window(x2, 350, window=uitrol_check, anchor=W)
 
     main_canvas.create_window(x1, 400, window=apply_btn, anchor=W)
+    #main_canvas.after(0, draw_graph)
 
 def draw_graph():
-    plt.plot('xlabel', 'ylabel', data=temperatuur)
+    global temperatuur
+    i = 0
+    x = []
+    x.append(i)
+    print("plot 0")
+    if len(temperatuur) > 0:
+        plt.scatter(i, temperatuur[len(temperatuur)-1])
+        i += 1
+        #plt.pause(6000)  # Note this correction
+        plt.plot('tijd', 'waarde')
+        plt.draw()
+        print("plot")
+        #plt.ion()
+        plt.show()
+    main_canvas.after(6, draw_graph)
 
 def get_ports():
     return [p.device for p in serial.tools.list_ports.comports() if p.pid == 67]
@@ -111,22 +128,21 @@ def refresh_arduinos():
     # map connected arduino in dictionary (key=port, value=sensor type)
     for port in get_ports():
         ser = serial.Serial()
-        try:
-            ser = serial.Serial(port, 9600)
-            serials.update({port: ser})
-            line = str(ser.readline().decode())
-            print(line)
-            if line.find('licht') != -1:
-                arduinos.update({port: 'Lichtsensor'})
-            if line.find('temperatuur') != -1:
-                arduinos.update({port: 'Temperatuursensor'})
-        except serial.serialutil.SerialException:
-            print("serial connection failed")
-            ser.close()
+        #try:
+        ser = serial.Serial(port, 9600)
+        serials.update({port: ser})
+        line = str(ser.readline().decode())
+        print(line)
+        if line.find('licht') != -1:
+            arduinos.update({port: 'Lichtsensor'})
+        if line.find('temperatuur') != -1:
+            arduinos.update({port: 'Temperatuursensor'})
+        #except serial.serialutil.SerialException:
+        #    print("serial connection failed")
+        #    ser.close()
 
 
-licht = []
-temperatuur = []
+
 def read_serial():
     for port in arduinos:
         ser = serials.get(port)
@@ -136,12 +152,11 @@ def read_serial():
                 print("serial_receive: "+line)
                 if line.find("l=") is not -1:
                     waarde = line[line.find("l=")+2:-1]
-                    print("l:"+waarde)
                     licht.append(int(waarde))
                 if line.find("t=") is not -1:
                     waarde = line[line.find("t=")+2:-1]
                     temperatuur.append(int(waarde))
-                #print("licht: "+str(licht)+"\ntemperatuur: "+str(temperatuur)+"\n")
+                print("licht: "+str(licht)+"\ntemperatuur: "+str(temperatuur)+"\n")
                 break
         except:
             print("error decoding serial data")
